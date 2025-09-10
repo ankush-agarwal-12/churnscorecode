@@ -5,6 +5,11 @@ venv_fixed/
 venv312/
 env/
 
+# Environment files
+env
+.env
+*.env
+
 # Local extras
 extras/
 
@@ -16,6 +21,3 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-
-env
