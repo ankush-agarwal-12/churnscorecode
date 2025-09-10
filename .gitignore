@@ -1,0 +1,18 @@
+# Virtual environments
+venv/
+venv2/
+venv_fixed/
+venv312/
+env/
+
+# Local extras
+extras/
+
+# Sub-repo (already under Git)
+live-retention/
+
+# Bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
