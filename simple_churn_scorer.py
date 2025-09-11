@@ -993,7 +993,7 @@ class SimpleChurnScorer:
                 if offer_products & unused_services:  # If offer includes unused services
                     overlap = offer_products & unused_services
                     offer_copy['accepted'] = False
-                    offer_copy['rejection_reason'] = f"Includes unused service: {', '.join(overlap)}"
+                    offer_copy['rejection_reason'] = f"Includes less used service: {', '.join(overlap)}"
             
             processed_offers.append(offer_copy)
         
@@ -1114,7 +1114,7 @@ class SimpleChurnScorer:
             
             # Call Ollama API
             payload = {
-                "model": "mistral:instruct",
+                "model": "llama3.2:3b",
                 "prompt": prompt,
                 "stream": False
             }
@@ -1159,7 +1159,7 @@ class SimpleChurnScorer:
             
             # Call Ollama API
             payload = {
-                "model": "mistral:instruct",
+                "model": "llama3.2:3b",
                 "prompt": prompt,
                 "stream": False
             }
@@ -1189,11 +1189,17 @@ class SimpleChurnScorer:
 
     def should_trigger_offer_update(self, churn_delta_threshold: float = 5.0) -> bool:
         """Determine if offers should be updated based on churn score changes"""
+        print(f"🔍 should_trigger_offer_update: threshold={churn_delta_threshold}, events={len(self.risk_events)}")
+        
         if len(self.risk_events) < 2:
+            print("✅ Triggering offer update - fewer than 2 events")
             return True  # Always update on first few events
         
         last_delta = self.risk_events[-1].cumulative_score - self.risk_events[-2].cumulative_score
-        return abs(last_delta) >= churn_delta_threshold
+        print(f"📊 Score change: {self.risk_events[-2].cumulative_score:.1f} → {self.risk_events[-1].cumulative_score:.1f} (delta: {last_delta:.1f})")
+        should_trigger = abs(last_delta) >= churn_delta_threshold
+        print(f"{'✅' if should_trigger else '❌'} Should trigger: {should_trigger} (|{last_delta:.1f}| >= {churn_delta_threshold})")
+        return should_trigger
 
     def get_current_score(self) -> float:
         """Get current churn score"""

@@ -344,53 +344,8 @@ class WebSocketChurnServer:
                 
                 # Don't send complete message - live transcript already sent
                 
-                # Process with churn scorer using the same method as simple_live_churn.py
-                event = self.churn_detector.churn_scorer.process_customer_message(
-                    customer_text, agent_context
-                )
-                
-                # Display update with churn calculation (same as simple_live_churn.py)
-                current_score = self.churn_detector.churn_scorer.get_current_score()
-                if event.risk_delta != 0:
-                    change_indicator = "+" if event.risk_delta > 0 else ""
-                    print(f"Churn Score: {current_score}/100 (Risk Change: {change_indicator}{event.risk_delta:.1f})")
-                else:
-                    print(f"Churn Score: {current_score}/100 (No Change)")
-                
-                # Send churn update to frontend
-                churn_update = {
-                    'type': 'churn_update',
-                    'current_score': current_score,
-                    'risk_delta': event.risk_delta,
-                    'sentiment': {
-                        'score': event.sentiment_score,
-                        'confidence': event.confidence
-                    },
-                    'emotion': {
-                        'dominant_emotion': event.emotion_result['dominant_emotion'],
-                        'dominant_score': event.emotion_result['dominant_score']
-                    },
-                    'patterns_detected': len(event.detected_patterns),
-                    'detected_pattern_names': event.detected_patterns
-                }
-                
-                print(f"Sending churn update to frontend: {churn_update}")
-                await self.broadcast_to_clients(churn_update)
-                
-                # Get dynamic offers if churn score changed significantly
-                if self.churn_detector.churn_scorer.should_trigger_offer_update():
-                    offers = self.churn_detector.churn_scorer.get_offers_for_agent(customer_text)
-                    if offers:
-                        offers_update = {
-                            'type': 'offers_update',
-                            'offers': offers,
-                            'triggered_by': 'churn_score_change',
-                            'churn_score': current_score,
-                            'risk_delta': event.risk_delta,
-                            'timestamp': datetime.now().strftime('%H:%M:%S')
-                        }
-                        await self.broadcast_to_clients(offers_update)
-                        print(f"Sent {len(offers)} dynamic offers to frontend")
+                # Process churn scoring asynchronously to avoid blocking audio
+                asyncio.create_task(self._process_churn_scoring_async(customer_text, agent_context))
                 
                 # Clear customer message
                 self.churn_detector.current_customer_message = ""
@@ -449,30 +404,18 @@ class WebSocketChurnServer:
                     'models_loaded': self.churn_detector is not None
                 }))
             elif message_type == 'generate_note':
-                # Generate conversation note from recent messages
+                # Generate conversation note from recent messages (non-blocking)
                 if self.churn_detector:
-                    transcript_messages = self.transcript_messages if hasattr(self, 'transcript_messages') else []
-                    note = self.churn_detector.churn_scorer.generate_conversation_note(transcript_messages)
-                    await websocket.send(json.dumps({
-                        'type': 'note_generated',
-                        'note': note,
-                        'timestamp': datetime.now().strftime('%H:%M:%S')
-                    }))
+                    asyncio.create_task(self._generate_note_async(websocket))
                 else:
                     await websocket.send(json.dumps({
                         'type': 'error',
                         'message': 'Churn detector not available'
                     }))
             elif message_type == 'generate_call_summary':
-                # Generate comprehensive call summary
+                # Generate comprehensive call summary (non-blocking)
                 if self.churn_detector:
-                    transcript_messages = self.transcript_messages if hasattr(self, 'transcript_messages') else []
-                    summary = self.churn_detector.churn_scorer.generate_call_summary(transcript_messages)
-                    await websocket.send(json.dumps({
-                        'type': 'call_summary_generated',
-                        'summary': summary,
-                        'timestamp': datetime.now().strftime('%H:%M:%S')
-                    }))
+                    asyncio.create_task(self._generate_call_summary_async(websocket))
                 else:
                     await websocket.send(json.dumps({
                         'type': 'error',
@@ -496,6 +439,120 @@ class WebSocketChurnServer:
             pass
         finally:
             await self.unregister_client(websocket)
+
+    async def _generate_note_async(self, websocket):
+        """Generate conversation note asynchronously without blocking audio processing"""
+        try:
+            transcript_messages = self.transcript_messages if hasattr(self, 'transcript_messages') else []
+            
+            # Run the blocking operation in a thread pool
+            loop = asyncio.get_event_loop()
+            note = await loop.run_in_executor(
+                None, 
+                self.churn_detector.churn_scorer.generate_conversation_note, 
+                transcript_messages
+            )
+            
+            await websocket.send(json.dumps({
+                'type': 'note_generated',
+                'note': note,
+                'timestamp': datetime.now().strftime('%H:%M:%S')
+            }))
+        except Exception as e:
+            print(f"Error generating note: {e}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'Error generating note: {str(e)}'
+            }))
+
+    async def _generate_call_summary_async(self, websocket):
+        """Generate call summary asynchronously without blocking audio processing"""
+        try:
+            transcript_messages = self.transcript_messages if hasattr(self, 'transcript_messages') else []
+            
+            # Run the blocking operation in a thread pool
+            loop = asyncio.get_event_loop()
+            summary = await loop.run_in_executor(
+                None, 
+                self.churn_detector.churn_scorer.generate_call_summary, 
+                transcript_messages
+            )
+            
+            await websocket.send(json.dumps({
+                'type': 'call_summary_generated',
+                'summary': summary,
+                'timestamp': datetime.now().strftime('%H:%M:%S')
+            }))
+        except Exception as e:
+            print(f"Error generating call summary: {e}")
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': f'Error generating call summary: {str(e)}'
+            }))
+
+    async def _process_churn_scoring_async(self, customer_text: str, agent_context: str):
+        """Process churn scoring asynchronously without blocking audio processing"""
+        try:
+            # Run the blocking churn calculation in a thread pool
+            loop = asyncio.get_event_loop()
+            event = await loop.run_in_executor(
+                None, 
+                self.churn_detector.churn_scorer.process_customer_message, 
+                customer_text, 
+                agent_context
+            )
+            
+            # Display update with churn calculation (same as simple_live_churn.py)
+            current_score = self.churn_detector.churn_scorer.get_current_score()
+            if event.risk_delta != 0:
+                change_indicator = "+" if event.risk_delta > 0 else ""
+                print(f"Churn Score: {current_score}/100 (Risk Change: {change_indicator}{event.risk_delta:.1f})")
+            else:
+                print(f"Churn Score: {current_score}/100 (No Change)")
+            
+            # Send churn update to frontend
+            churn_update = {
+                'type': 'churn_update',
+                'current_score': current_score,
+                'risk_delta': event.risk_delta,
+                'sentiment': {
+                    'score': event.sentiment_score,
+                    'confidence': event.confidence
+                },
+                'emotion': {
+                    'dominant_emotion': event.emotion_result['dominant_emotion'],
+                    'dominant_score': event.emotion_result['dominant_score']
+                },
+                'patterns_detected': len(event.detected_patterns),
+                'detected_pattern_names': event.detected_patterns
+            }
+            
+            print(f"Sending churn update to frontend: {churn_update}")
+            await self.broadcast_to_clients(churn_update)
+            
+            # Get dynamic offers if churn score changed significantly
+            print(f"🔍 Checking if offers should be updated - Risk delta: {event.risk_delta}")
+            if self.churn_detector.churn_scorer.should_trigger_offer_update(churn_delta_threshold=4.0):
+                print(f"✅ Triggering offer update due to significant churn change: {event.risk_delta}")
+                offers = self.churn_detector.churn_scorer.get_offers_for_agent(customer_text)
+                if offers:
+                    offers_update = {
+                        'type': 'offers_update',
+                        'offers': offers,
+                        'triggered_by': 'churn_score_change',
+                        'churn_score': current_score,
+                        'risk_delta': event.risk_delta,
+                        'timestamp': datetime.now().strftime('%H:%M:%S')
+                    }
+                    await self.broadcast_to_clients(offers_update)
+                    print(f"📤 Sent {len(offers)} dynamic offers to frontend")
+                else:
+                    print("⚠️ No offers returned from get_offers_for_agent")
+            else:
+                print(f"❌ Offer update not triggered - Risk delta {event.risk_delta} below threshold of 4.0")
+                
+        except Exception as e:
+            print(f"Error processing churn scoring: {e}")
 
 # Global server instance
 server = WebSocketChurnServer()
