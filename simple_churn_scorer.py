@@ -88,7 +88,7 @@ class SimpleChurnScorer:
             raise ImportError("Sentence transformers required for embeddings")
         print("Loading embedding model...")
         # Using more powerful model for better customer service understanding
-        self.embedding_model = SentenceTransformer('all-mpnet-base-v2')
+        self.embedding_model = SentenceTransformer('all-mpnet-base-v2')   
         
         # Initialize dynamic offer engine
         if OFFER_ENGINE_AVAILABLE:
@@ -917,7 +917,7 @@ class SimpleChurnScorer:
             sentiment_risk = 20.0
         elif sentiment_score < -0.1:  # Slightly negative
             sentiment_risk = 10.0
-        elif sentiment_score > 0.35:  # Positive
+        elif sentiment_score > 0.36:  # Positive
             sentiment_risk = -20.0
         elif sentiment_score > 0.25:  # Slightly positive
             sentiment_risk = -10.0

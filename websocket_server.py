@@ -532,7 +532,7 @@ class WebSocketChurnServer:
             
             # Get dynamic offers if churn score changed significantly
             print(f"🔍 Checking if offers should be updated - Risk delta: {event.risk_delta}")
-            if self.churn_detector.churn_scorer.should_trigger_offer_update(churn_delta_threshold=4.0):
+            if self.churn_detector.churn_scorer.should_trigger_offer_update(churn_delta_threshold=3.5):
                 print(f"✅ Triggering offer update due to significant churn change: {event.risk_delta}")
                 offers = self.churn_detector.churn_scorer.get_offers_for_agent(customer_text)
                 if offers:
