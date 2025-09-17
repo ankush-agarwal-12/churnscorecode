@@ -36,6 +36,14 @@ except ImportError:
     OFFER_ENGINE_AVAILABLE = False
     print("Note: Dynamic offer engine not available. Offers will not be generated.")
 
+# Import the LLM indicator extractor
+try:
+    from llm_indicator_extractor import LLMIndicatorExtractor
+    LLM_EXTRACTOR_AVAILABLE = True
+except ImportError:
+    LLM_EXTRACTOR_AVAILABLE = False
+    print("Note: LLM indicator extractor not available. Will use only rule-based patterns.")
+
 @dataclass
 class ChurnEvent:
     timestamp: datetime
@@ -101,6 +109,23 @@ class SimpleChurnScorer:
                 self.offer_engine = None
         else:
             self.offer_engine = None
+        
+        # Initialize LLM indicator extractor
+        self.use_llm_indicators = False  # Flag to enable/disable LLM-based pattern detection
+        self.use_llm_offer_filtering = False  # Flag to enable/disable LLM-based offer filtering
+        self.llm_rejected_offers = {}  # Track offers rejected by LLM with reasons (persistent across calls)
+        if LLM_EXTRACTOR_AVAILABLE:
+            try:
+                print("Initializing LLM indicator extractor...")
+                self.llm_extractor = LLMIndicatorExtractor()
+                print("LLM extractor initialized successfully!")
+                print("💡 To use LLM-based pattern detection, set scorer.use_llm_indicators = True")
+                print("💡 To use LLM-based offer filtering, set scorer.use_llm_offer_filtering = True")
+            except Exception as e:
+                print(f"Could not initialize LLM extractor: {e}")
+                self.llm_extractor = None
+        else:
+            self.llm_extractor = None
         
         # Churn scoring parameters
         self.baseline_score = 50.0  # Starting churn risk (0-100)
@@ -672,6 +697,165 @@ class SimpleChurnScorer:
         
         return total_risk_delta, detected_patterns
 
+    def detect_risk_patterns_llm(self, text: str, agent_context: str = "") -> tuple:
+        """
+        Detect risk patterns using LLM indicator extractor
+        Returns: (total_risk_delta, detected_patterns)
+        """
+        print("🤖 LLM Risk Pattern Detection:")
+        
+        if not self.llm_extractor:
+            print("❌ LLM extractor not available, falling back to embedding detection")
+            return self.detect_risk_patterns_embedding(text, agent_context)
+        
+        try:
+            # Get LLM analysis
+            analysis = self.llm_extractor.get_comprehensive_analysis(text, agent_context)
+            
+            if "error" in analysis:
+                print(f"❌ LLM analysis failed: {analysis['error']}")
+                print("⚠️ Falling back to embedding detection")
+                return self.detect_risk_patterns_embedding(text, agent_context)
+            
+            # Map LLM detected patterns to base risk scores (same as embedding system)
+            pattern_risk_map = {
+                "billing_complaint": 15.0,
+                "competitor_mention": 30.0, 
+                "service_frustration": 20.0,
+                "process_frustration": 20.0,
+                "positive_resolution": -40.0
+            }
+            
+            detected_patterns = analysis.get("risk_patterns", [])
+            total_risk_delta = 0.0
+            
+            print(f"  LLM Detected patterns: {detected_patterns}")
+            print(f"  LLM Sentiment: {analysis.get('sentiment', 'unknown')}")
+            print(f"  LLM Emotion: {analysis.get('emotion', 'unknown')}")
+            
+            # Calculate risk contribution from detected patterns
+            for pattern in detected_patterns:
+                if pattern in pattern_risk_map:
+                    risk_contribution = pattern_risk_map[pattern]
+                    total_risk_delta += risk_contribution
+                    print(f"  {pattern}: LLM detected -> risk={risk_contribution:.1f}")
+                else:
+                    print(f"  {pattern}: unknown pattern, skipping")
+            
+            if not detected_patterns:
+                print("  No risk patterns detected by LLM")
+            
+            return total_risk_delta, detected_patterns
+            
+        except Exception as e:
+            print(f"❌ Error in LLM pattern detection: {e}")
+            print("⚠️ Falling back to embedding detection")
+            return self.detect_risk_patterns_embedding(text, agent_context)
+
+    def _convert_llm_sentiment_to_score(self, llm_sentiment: str) -> float:
+        """Convert LLM sentiment string to numerical score for scoring logic compatibility"""
+        sentiment_mapping = {
+            "very_positive": 0.5,
+            "positive": 0.3,
+            "neutral": 0.0,
+            "negative": -0.2,
+            "very_negative": -0.7
+        }
+        return sentiment_mapping.get(llm_sentiment.lower(), 0.0)
+    
+    def _calculate_llm_pattern_risk(self, detected_patterns: List[str]) -> float:
+        """Calculate total pattern risk from LLM detected patterns using same base scores"""
+        pattern_risk_map = {
+            "billing_complaint": 15.0,
+            "competitor_mention": 30.0, 
+            "service_frustration": 20.0,
+            "process_frustration": 20.0,
+            "positive_resolution": -40.0
+        }
+        
+        total_risk = 0.0
+        for pattern in detected_patterns:
+            if pattern in pattern_risk_map:
+                risk_contribution = pattern_risk_map[pattern]
+                total_risk += risk_contribution
+                print(f"  {pattern}: LLM detected -> risk={risk_contribution:.1f}")
+            else:
+                print(f"  {pattern}: unknown pattern, skipping")
+        
+        return total_risk
+    
+    def _process_with_rule_based_analysis(self, customer_text: str, agent_context: str, timestamp: datetime) -> ChurnEvent:
+        """Fallback method to process with rule-based analysis when LLM fails"""
+        print("🧠 Using rule-based analysis (fallback)")
+        
+        # Analyze sentiment with agent context
+        sentiment_score, sentiment_confidence = self.analyze_sentiment(customer_text, agent_context)
+        
+        # Analyze emotion
+        emotion_result = self.analyze_emotion(customer_text)
+        
+        # Detect risk patterns
+        pattern_risk, detected_patterns = self.detect_risk_patterns_embedding(customer_text, agent_context)
+        
+        print(f"Rule-based Sentiment: score={sentiment_score:.3f}, confidence={sentiment_confidence:.3f}")
+        print(f"Rule-based Emotion: {emotion_result['dominant_emotion']} ({emotion_result['dominant_score']:.3f})")
+        
+        # Update conversation context
+        self.update_conversation_context(customer_text, detected_patterns)
+        
+        # Calculate sentiment risk
+        sentiment_risk = 0.0
+        if sentiment_score < -0.6:  # Very negative
+            sentiment_risk = 30.0
+        elif sentiment_score < -0.3:  # Moderately negative
+            sentiment_risk = 20.0
+        elif sentiment_score < -0.1:  # Slightly negative
+            sentiment_risk = 10.0
+        elif sentiment_score > 0.36:  # Positive
+            sentiment_risk = -20.0
+        elif sentiment_score > 0.25:  # Slightly positive
+            sentiment_risk = -10.0
+        
+        print(f"Sentiment Risk: {sentiment_risk:.1f} (based on sentiment score {sentiment_score:.3f})")
+        
+        # Calculate emotion risk
+        print("Emotion Risk Analysis:")
+        emotion_risk = self.calculate_emotion_risk(emotion_result)
+        print(f"Emotion Risk: {emotion_risk:.1f}")
+        
+        total_risk_delta = pattern_risk + sentiment_risk + emotion_risk
+        print(f"Total Risk Delta: {pattern_risk:.1f} + {sentiment_risk:.1f} + {emotion_risk:.1f} = {total_risk_delta:.1f}")
+        
+        # Update cumulative score
+        previous_score = self.current_score
+        alpha = self.alpha
+        new_score = (1 - alpha) * previous_score + alpha * (previous_score + total_risk_delta)
+        new_score = max(0.0, min(100.0, new_score))
+        
+        print(f"Score Update: ({1-alpha:.1f} × {previous_score:.1f}) + ({alpha:.1f} × ({previous_score:.1f} + {total_risk_delta:.1f})) = {new_score:.1f}")
+        
+        self.current_score = new_score
+        
+        # Create event record
+        event = ChurnEvent(
+            timestamp=timestamp,
+            speaker="Customer",
+            text=customer_text,
+            agent_context=agent_context,
+            sentiment_score=sentiment_score,
+            emotion_result=emotion_result,
+            risk_delta=total_risk_delta,
+            cumulative_score=new_score,
+            confidence=sentiment_confidence,
+            detected_patterns=detected_patterns
+        )
+        
+        # Store in history
+        self.conversation_history.append(event)
+        self.risk_events.append(event)
+        
+        return event
+
     def calculate_emotion_risk(self, emotion_result: dict) -> float:
         """Calculate risk based on dominant emotion only"""
         dominant_emotion = emotion_result.get('dominant_emotion', 'neutral')
@@ -685,7 +869,8 @@ class SimpleChurnScorer:
             'joy': -30.0,       # Negative risk - happy customers
             'neutral': 0.0,     # No risk impact
             'sadness': 10.0,    # Moderate risk - disappointed customers
-            'surprise': 5.0     # Low risk - unexpected situations
+            'surprise': 5.0,   # Low risk - unexpected situations
+            'frustration': 10.0 # Moderate risk - frustrated customers
         }
         
         # Calculate risk only for the dominant emotion
@@ -897,19 +1082,63 @@ class SimpleChurnScorer:
         
         print("--- Churn Analysis ---")
         
-        # Analyze sentiment with agent context
-        sentiment_score, sentiment_confidence = self.analyze_sentiment(customer_text, agent_context)
-        print(f"Sentiment: score={sentiment_score:.3f}, confidence={sentiment_confidence:.3f}")
+        if self.use_llm_indicators and self.llm_extractor:
+            # Use LLM for all analysis: sentiment, emotion, and risk patterns
+            print("🤖 Using LLM-based analysis for sentiment, emotion, and risk patterns")
+            
+            try:
+                # Get comprehensive LLM analysis
+                llm_analysis = self.llm_extractor.get_comprehensive_analysis(customer_text, agent_context)
+                
+                if "error" in llm_analysis:
+                    print(f"❌ LLM analysis failed: {llm_analysis['error']}")
+                    print("⚠️ Falling back to rule-based analysis")
+                    return self._process_with_rule_based_analysis(customer_text, agent_context, timestamp)
+                
+                # Extract LLM results
+                llm_sentiment = llm_analysis.get("sentiment", "neutral")
+                llm_emotion = llm_analysis.get("emotion", "neutral")
+                detected_patterns = llm_analysis.get("risk_patterns", [])
+                
+                print(f"LLM Sentiment: {llm_sentiment}")
+                print(f"LLM Emotion: {llm_emotion}")
+                print(f"LLM Risk Patterns: {detected_patterns}")
+                
+                # Convert LLM sentiment to numerical score (for scoring logic compatibility)
+                sentiment_score = self._convert_llm_sentiment_to_score(llm_sentiment)
+                sentiment_confidence = 0.8  # High confidence for LLM
+                
+                # Create emotion result in expected format
+                emotion_result = {
+                    'dominant_emotion': llm_emotion,
+                    'dominant_score': 0.8  # High confidence for LLM
+                }
+                
+                # Calculate pattern risk using same base scores
+                pattern_risk = self._calculate_llm_pattern_risk(detected_patterns)
+                
+                print(f"Converted sentiment score: {sentiment_score:.3f}")
+                print(f"Pattern risk from LLM: {pattern_risk:.1f}")
+                
+            except Exception as e:
+                print(f"❌ Error in LLM analysis: {e}")
+                print("⚠️ Falling back to rule-based analysis")
+                return self._process_with_rule_based_analysis(customer_text, agent_context, timestamp)
         
-        # Analyze emotion
-        emotion_result = self.analyze_emotion(customer_text)
-        print(f"Emotion: {emotion_result['dominant_emotion']} ({emotion_result['dominant_score']:.3f})")
+        else:
+            # Use rule-based analysis
+            print("🧠 Using rule-based analysis for sentiment, emotion, and risk patterns")
+            sentiment_score, sentiment_confidence = self.analyze_sentiment(customer_text, agent_context)
+            emotion_result = self.analyze_emotion(customer_text)
+            pattern_risk, detected_patterns = self.detect_risk_patterns_embedding(customer_text, agent_context)
+            
+            print(f"Rule-based Sentiment: score={sentiment_score:.3f}, confidence={sentiment_confidence:.3f}")
+            print(f"Rule-based Emotion: {emotion_result['dominant_emotion']} ({emotion_result['dominant_score']:.3f})")
         
-        # Detect risk patterns and update context
-        pattern_risk, detected_patterns = self.detect_risk_patterns_embedding(customer_text, agent_context)
+        # Update conversation context
         self.update_conversation_context(customer_text, detected_patterns)
         
-        # Calculate sentiment risk
+        # Calculate sentiment risk (same logic for both LLM and rule-based)
         sentiment_risk = 0.0
         if sentiment_score < -0.6:  # Very negative
             sentiment_risk = 30.0
@@ -924,7 +1153,7 @@ class SimpleChurnScorer:
         
         print(f"Sentiment Risk: {sentiment_risk:.1f} (based on sentiment score {sentiment_score:.3f})")
         
-        # Calculate emotion risk
+        # Calculate emotion risk (same logic for both LLM and rule-based)
         print("Emotion Risk Analysis:")
         emotion_risk = self.calculate_emotion_risk(emotion_result)
         print(f"Emotion Risk: {emotion_risk:.1f}")
@@ -932,7 +1161,7 @@ class SimpleChurnScorer:
         total_risk_delta = pattern_risk + sentiment_risk + emotion_risk
         print(f"Total Risk Delta: {pattern_risk:.1f} + {sentiment_risk:.1f} + {emotion_risk:.1f} = {total_risk_delta:.1f}")
         
-        # Update cumulative score with detailed calculation
+        # Update cumulative score with detailed calculation (same logic for both)
         previous_score = self.current_score
         alpha = self.alpha
         new_score = (1 - alpha) * previous_score + alpha * (previous_score + total_risk_delta)
@@ -957,13 +1186,7 @@ class SimpleChurnScorer:
         )
         
         # Store in history
-        self.conversation_history.append({
-            'timestamp': timestamp,
-            'speaker': 'Customer',
-            'text': customer_text,
-            'sentiment': sentiment_score
-        })
-        
+        self.conversation_history.append(event)
         self.risk_events.append(event)
         
         return event
@@ -1022,6 +1245,92 @@ class SimpleChurnScorer:
         
         return final_offers
 
+    def apply_llm_based_filtering(self, offers: List[Dict], customer_text: str) -> List[Dict]:
+        """Apply LLM-based filtering using comprehensive analysis from LLM extractor"""
+        
+        print(f"\n🤖 LLM-BASED FILTERING:")
+        print(f"Starting with {len(offers)} offers")
+        
+        if not self.llm_extractor:
+            print("❌ LLM extractor not available, falling back to rule-based filtering")
+            return self.apply_rule_based_filtering(offers)
+        
+        try:
+            # Get comprehensive LLM analysis
+            llm_analysis = self.llm_extractor.get_comprehensive_analysis(customer_text, "")
+            
+            if "error" in llm_analysis:
+                print(f"❌ LLM analysis failed: {llm_analysis['error']}")
+                print("⚠️ Falling back to rule-based filtering")
+                return self.apply_rule_based_filtering(offers)
+            
+            # Use LLM extractor's sophisticated filtering logic
+            filtered_offers = llm_analysis.get("filtered_offers", [])
+            
+            if not filtered_offers:
+                print("⚠️ No filtered offers from LLM, falling back to rule-based filtering")
+                return self.apply_rule_based_filtering(offers)
+            
+            # Convert LLM filtered offers back to the format expected by simple churn scorer
+            processed_offers = []
+            
+            # Create a mapping of offer IDs to original offers
+            offer_map = {offer['offer_id']: offer for offer in offers}
+            
+            # Process LLM filtered offers
+            for llm_offer in filtered_offers:
+                offer_id = llm_offer.get('offer_id')
+                if offer_id in offer_map:
+                    original_offer = offer_map[offer_id].copy()
+                    
+                    # Add LLM filtering information
+                    original_offer['accepted'] = True  # LLM filtered offers are considered accepted
+                    original_offer['rejection_reason'] = None
+                    original_offer['llm_filtered'] = True
+                    
+                    # Add LLM filtering explanations if available
+                    if 'filtering_explanation' in llm_offer:
+                        original_offer['llm_explanation'] = llm_offer['filtering_explanation']
+                    
+                    # Add relevance information from LLM
+                    if 'relevance_score' in llm_offer:
+                        original_offer['llm_relevance'] = llm_offer['relevance_score']
+                    
+                    processed_offers.append(original_offer)
+            
+            # Add rejected offers (those not in LLM filtered list)
+            llm_offer_ids = {offer.get('offer_id') for offer in filtered_offers}
+            for offer in offers:
+                if offer['offer_id'] not in llm_offer_ids:
+                    rejected_offer = offer.copy()
+                    rejected_offer['accepted'] = False
+                    rejected_offer['rejection_reason'] = "Filtered out by LLM analysis"
+                    rejected_offer['llm_filtered'] = False
+                    processed_offers.append(rejected_offer)
+            
+            # Sort: accepted (LLM filtered) first, then rejected
+            accepted_offers = [o for o in processed_offers if o['accepted']]
+            rejected_offers = [o for o in processed_offers if not o['accepted']]
+            
+            # LLM already provides intelligent sorting, so we keep the order
+            final_offers = accepted_offers + rejected_offers
+            
+            accepted_count = len(accepted_offers)
+            rejected_count = len(rejected_offers)
+            
+            print(f"LLM Analysis:")
+            print(f"  Sentiment: {llm_analysis.get('sentiment', 'unknown')}")
+            print(f"  Emotion: {llm_analysis.get('emotion', 'unknown')}")
+            print(f"  Risk Patterns: {llm_analysis.get('risk_patterns', [])}")
+            print(f"Final result: {accepted_count} accepted, {rejected_count} rejected offers")
+            
+            return final_offers
+            
+        except Exception as e:
+            print(f"❌ Error in LLM offer filtering: {e}")
+            print("⚠️ Falling back to rule-based filtering")
+            return self.apply_rule_based_filtering(offers)
+
     def get_dynamic_offers(self, customer_text: str, max_offers: int = 3) -> Optional[Dict]:
         """Get dynamic offer recommendations based on current conversation and churn score"""
         if not self.offer_engine:
@@ -1062,9 +1371,13 @@ class SimpleChurnScorer:
     def get_offers_for_agent(self, customer_text: str) -> List[Dict]:
         """Get simplified offer recommendations for agent display"""
         
-        # For rule-based filtering, work directly with static catalog to get all offers
-        # Apply rule-based filtering to static offers
-        filtered_offers = self.apply_rule_based_filtering(self.initial_offers)
+        # Choose filtering method based on flags
+        if self.use_llm_offer_filtering and self.llm_extractor:
+            filtered_offers = self.apply_llm_based_filtering(self.initial_offers, customer_text)
+        else:
+            # For rule-based filtering, work directly with static catalog to get all offers
+            # Apply rule-based filtering to static offers
+            filtered_offers = self.apply_rule_based_filtering(self.initial_offers)
         
         # Convert to simplified format for frontend
         simplified_offers = []
@@ -1205,9 +1518,56 @@ class SimpleChurnScorer:
         """Get current churn score"""
         return round(self.current_score, 1)
 
-    def reset_conversation(self):
-        """Reset for a new conversation"""
+    def set_baseline_score(self, score: float):
+        """Set the baseline score for the customer"""
+        self.baseline_score = max(0.0, min(100.0, score))
         self.current_score = self.baseline_score
+        print(f"🎯 Set baseline churn score to {self.baseline_score}/100")
+
+    def set_customer_profile_data(self, customer_data: dict):
+        """Set customer profile data for LLM indicator extractor"""
+        print(f"📋 Received customer data: {customer_data}")
+        
+        if self.llm_extractor:
+            # Extract MRC from string format like "$200" to integer
+            current_mrc = customer_data.get('currentMRC', '200')
+            print(f"📋 Raw currentMRC: {current_mrc} (type: {type(current_mrc)})")
+            if isinstance(current_mrc, str):
+                # Remove $ symbol and convert to int
+                current_mrc = int(current_mrc.replace('$', ''))
+            
+            previous_mrc = customer_data.get('previousMRC', '180')
+            print(f"📋 Raw previousMRC: {previous_mrc} (type: {type(previous_mrc)})")
+            if isinstance(previous_mrc, str):
+                previous_mrc = int(previous_mrc.replace('$', ''))
+            
+            # Update the LLM extractor's customer profile
+            updated_profile = {
+                "name": customer_data.get('name', 'Unknown Customer'),
+                "current_mrc": current_mrc,
+                "previous_mrc": previous_mrc,
+                "tenure_months": self._parse_tenure(customer_data.get('tenure', '18 months')),
+                "current_plan": customer_data.get('currentPlan', ''),
+                "services": customer_data.get('currentProducts', 'Internet, TV, Mobile').split(', ')
+            }
+            
+            # print(f"📋 Before update - LLM extractor profile: {self.llm_extractor.customer_profile}")
+            self.llm_extractor.customer_profile.update(updated_profile)
+            # print(f"📋 After update - LLM extractor profile: {self.llm_extractor.customer_profile}")
+            # print(f"💼 Updated customer profile: {self.llm_extractor.customer_profile['name']} (MRC: ${self.llm_extractor.customer_profile['current_mrc']})")
+        else:
+            print("⚠️ LLM extractor not available, cannot set customer profile")
+    
+    def _parse_tenure(self, tenure_str: str) -> int:
+        """Parse tenure string like '18 months' to integer months"""
+        try:
+            return int(tenure_str.split()[0])
+        except (ValueError, IndexError):
+            return 18  # Default fallback
+
+    def reset_conversation(self):
+        """Reset all conversation state including churn score and LLM rejected offers"""
+        self.current_score = self.baseline_score  # Reset to customer's baseline instead of hardcoded 50
         self.conversation_history = []
         self.risk_events = []
         
@@ -1220,63 +1580,387 @@ class SimpleChurnScorer:
             sentiment_trend='neutral',
             competitor_mentions=[]
         )
+        
+        # Reset LLM rejected offers
+        self.llm_rejected_offers = {}
+        print(f"🔄 Reset conversation state to baseline score {self.baseline_score}/100")
+
+    def reset_llm_rejected_offers(self):
+        """Reset only the LLM rejected offers (useful for testing or new conversation)"""
+        self.llm_rejected_offers = {}
+        print("🔄 Reset LLM rejected offers - all offers available again")
+
+    def get_offers_for_agent_with_analysis(self, customer_text: str, llm_analysis: dict = None) -> List[Dict]:
+        """
+        Get offers using pre-computed LLM analysis to avoid duplicate calls
+        In hybrid mode: Always use LLM filtering when analysis is provided
+        Always returns ALL initial offers with accept/reject status for frontend display
+        """
+        if llm_analysis and self.llm_extractor:
+            # Always use ALL initial offers for consistent frontend display
+            print(f"🔄 Starting LLM filtering with ALL {len(self.initial_offers)} initial offers for frontend")
+            
+            # Use LLM filtering when analysis is provided (hybrid mode or LLM mode)
+            filtered_offers = self.apply_llm_based_filtering_with_analysis(self.initial_offers, llm_analysis)
+        else:
+            # Fallback to rule-based filtering (should only happen in rule-based mode)
+            filtered_offers = self.apply_rule_based_filtering(self.initial_offers)
+        
+        # Return all offers in frontend format (both accepted and rejected)
+        frontend_offers = []
+        for offer in filtered_offers:
+            frontend_offer = {
+                'id': offer['offer_id'],
+                'title': offer['title'],
+                'description': offer['description'],
+                'value': f"${offer['price_delta']}/month" if offer['price_delta'] != 0 else "No cost change",
+                'urgency': offer.get('urgency', 'Standard'),
+                'category': offer['category'],
+                'relevance': offer.get('relevance', 50),
+                'type': offer['category'],
+                'price_delta': offer['price_delta'],
+                'retention_offer': offer.get('retention_offer', False),
+                'accepted': offer.get('accepted', True),
+                'rejection_reason': offer.get('rejection_reason'),
+                'llm_filtered': offer.get('llm_filtered', False)
+            }
+            frontend_offers.append(frontend_offer)
+        
+        return frontend_offers
+
+    def apply_llm_based_filtering_with_analysis(self, offers: List[Dict], llm_analysis: dict) -> List[Dict]:
+        """
+        Apply LLM-based filtering using pre-computed analysis
+        In hybrid mode: NO fallback to rule-based filtering, return existing offers if LLM fails
+        Maintains persistent rejected offers - once rejected by LLM, stays rejected (greyed out)
+        """
+        print(f"\n🤖 LLM-BASED FILTERING (using existing analysis):")
+        print(f"Starting with {len(offers)} offers")
+        
+        try:
+            if "error" in llm_analysis:
+                print(f"❌ LLM analysis contains error: {llm_analysis['error']}")
+                print("🔄 Hybrid mode: Returning all offers as accepted (LLM error fallback)")
+                # Return all offers as accepted when LLM fails (fallback case)
+                return self._format_offers_as_accepted(offers)
+            
+            # Use the existing analysis instead of calling LLM again
+            filtered_offers = llm_analysis.get("filtered_offers", [])
+            if not filtered_offers:
+                print("⚠️ No filtered offers from LLM analysis")
+                print("🔄 Hybrid mode: Returning all offers as rejected (filtering resulted in 0 offers)")
+                # Return all offers as rejected since filtering legitimately resulted in 0 offers
+                return self._format_offers_as_rejected(offers, llm_analysis)
+            
+            # ALWAYS work with ALL initial offers for frontend display
+            all_initial_offers = self.initial_offers
+            print(f"🔄 Processing ALL {len(all_initial_offers)} offers for frontend display")
+            
+            # Track previously rejected offers
+            if hasattr(self, 'llm_rejected_offers'):
+                print(f"🔄 Found {len(self.llm_rejected_offers)} previously rejected offers")
+            else:
+                self.llm_rejected_offers = {}
+            
+            processed_offers = []
+            
+            # Get LLM-accepted offer IDs for this call
+            llm_offer_ids = {offer.get('offer_id') for offer in filtered_offers}
+            
+            # Extract indicators for generating rejection reasons
+            sentiment = llm_analysis.get('sentiment', 'neutral')
+            emotion = llm_analysis.get('emotion', 'neutral')
+            risk_patterns = llm_analysis.get('risk_patterns', [])
+            offer_indicators = llm_analysis.get('offer_indicators', {})
+            
+            # Process ALL offers - check both current LLM decision and persistent rejections
+            newly_rejected = 0
+            for offer in all_initial_offers:
+                offer_id = offer['offer_id']
+                
+                # Check if this offer was previously rejected by LLM (persistent)
+                if offer_id in self.llm_rejected_offers:
+                    # This offer was rejected in a previous LLM call - keep it rejected
+                    rejected_offer = offer.copy()
+                    rejected_offer['accepted'] = False
+                    rejected_offer['llm_filtered'] = False
+                    rejected_offer['rejection_reason'] = self.llm_rejected_offers[offer_id]
+                    rejected_offer['persistent_rejection'] = True
+                    processed_offers.append(rejected_offer)
+                    print(f"  📋 {offer_id}: Previously rejected - {self.llm_rejected_offers[offer_id][:50]}...")
+                
+                elif offer_id in llm_offer_ids:
+                    # This offer is accepted by LLM in this call
+                    accepted_offer = offer.copy()
+                    accepted_offer['accepted'] = True
+                    accepted_offer['rejection_reason'] = None
+                    accepted_offer['llm_filtered'] = True
+                    
+                    # Find corresponding LLM offer for additional details
+                    for llm_offer in filtered_offers:
+                        if llm_offer.get('offer_id') == offer_id:
+                            if 'filtering_explanation' in llm_offer:
+                                accepted_offer['llm_explanation'] = llm_offer['filtering_explanation']
+                            if 'relevance_score' in llm_offer:
+                                accepted_offer['llm_relevance'] = llm_offer['relevance_score']
+                            break
+                    
+                    processed_offers.append(accepted_offer)
+                    print(f"  ✅ {offer_id}: Accepted by LLM")
+                
+                else:
+                    # This offer is rejected by LLM in this call - add to persistent rejections
+                    rejection_reason = self._generate_enhanced_llm_rejection_reason(
+                        offer, sentiment, emotion, risk_patterns, offer_indicators
+                    )
+                    
+                    # Store in persistent rejected offers
+                    self.llm_rejected_offers[offer_id] = rejection_reason
+                    
+                    rejected_offer = offer.copy()
+                    rejected_offer['accepted'] = False
+                    rejected_offer['llm_filtered'] = False
+                    rejected_offer['rejection_reason'] = rejection_reason
+                    rejected_offer['persistent_rejection'] = False  # Newly rejected
+                    
+                    processed_offers.append(rejected_offer)
+                    newly_rejected += 1
+                    print(f"  ❌ {offer_id}: Newly rejected - {rejection_reason[:50]}...")
+            
+            accepted_offers = [o for o in processed_offers if o['accepted']]
+            rejected_offers = [o for o in processed_offers if not o['accepted']]
+            
+            # Sort accepted offers first, then rejected
+            final_offers = accepted_offers + rejected_offers
+            
+            accepted_count = len(accepted_offers)
+            rejected_count = len(rejected_offers)
+            persistent_count = len([o for o in rejected_offers if o.get('persistent_rejection', False)])
+            
+            print(f"LLM Analysis (using existing):")
+            print(f"  Sentiment: {llm_analysis.get('sentiment', 'unknown')}")
+            print(f"  Emotion: {llm_analysis.get('emotion', 'unknown')}")
+            print(f"  Risk Patterns: {llm_analysis.get('risk_patterns', [])}")
+            print(f"Final result: {accepted_count} accepted, {rejected_count} rejected ({persistent_count} persistent, {newly_rejected} new)")
+            print(f"🔄 Frontend will display ALL {len(final_offers)} offers with persistent rejection state")
+            
+            return final_offers
+            
+        except Exception as e:
+            print(f"❌ Error in LLM offer filtering with existing analysis: {e}")
+            print("🔄 Hybrid mode: Returning all offers as accepted (exception fallback)")
+            # Return all offers as accepted when exception occurs (fallback case)
+            return self._format_offers_as_accepted(offers)
+
+    def _format_offers_as_accepted(self, offers: List[Dict]) -> List[Dict]:
+        """Format all offers as accepted when LLM filtering fails in hybrid mode"""
+        # Always use ALL initial offers for frontend display
+        all_offers = self.initial_offers
+        formatted_offers = []
+        for offer in all_offers:
+            formatted_offer = offer.copy()
+            formatted_offer['accepted'] = True
+            formatted_offer['rejection_reason'] = None
+            formatted_offer['llm_filtered'] = False
+            formatted_offer['fallback_reason'] = "LLM filtering unavailable - showing all offers"
+            formatted_offers.append(formatted_offer)
+        return formatted_offers
+
+    def _format_offers_as_rejected(self, offers: List[Dict], llm_analysis: dict) -> List[Dict]:
+        """Format all offers as rejected when LLM filtering results in 0 offers"""
+        # Always use ALL initial offers for frontend display
+        all_offers = self.initial_offers
+        formatted_offers = []
+        
+        # Extract indicators for generating rejection reasons
+        sentiment = llm_analysis.get('sentiment', 'neutral')
+        emotion = llm_analysis.get('emotion', 'neutral')
+        risk_patterns = llm_analysis.get('risk_patterns', [])
+        offer_indicators = llm_analysis.get('offer_indicators', {})
+        
+        for offer in all_offers:
+            formatted_offer = offer.copy()
+            formatted_offer['accepted'] = False
+            formatted_offer['llm_filtered'] = False
+            
+            # Generate specific rejection reason based on analysis
+            rejection_reason = self._generate_enhanced_llm_rejection_reason(
+                offer, sentiment, emotion, risk_patterns, offer_indicators
+            )
+            formatted_offer['rejection_reason'] = rejection_reason
+            
+            formatted_offers.append(formatted_offer)
+        
+        print(f"🔄 Formatted {len(formatted_offers)} offers as rejected due to filtering criteria")
+        return formatted_offers
+
+    def _generate_enhanced_llm_rejection_reason(self, offer: Dict, sentiment: str, emotion: str, risk_patterns: List[str], offer_indicators: dict) -> str:
+        """Generate specific rejection reason for LLM-filtered offers with detailed reasoning"""
+        reasons = []
+        
+        # Extract service usage and removal indicators
+        service_usage = offer_indicators.get('service_usage', {})
+        service_removal_interest = offer_indicators.get('service_removal_interest', {})
+        budget_concern = offer_indicators.get('budget_concern_level', 'none')
+        value_preference = offer_indicators.get('value_preference', 'balanced')
+        
+        # Check service removal interest FIRST (highest priority)
+        offer_types = offer.get('product_types', [])
+        
+        if 'TV' in offer_types and service_removal_interest.get('tv_removal', False):
+            reasons.append("Customer wants to remove TV service (tv_removal: true)")
+        elif 'Mobile' in offer_types and service_removal_interest.get('mobile_removal', False):
+            reasons.append("Customer wants to remove Mobile service (mobile_removal: true)")
+        elif 'Internet' in offer_types and service_removal_interest.get('internet_removal', False):
+            reasons.append("Customer wants to remove Internet service (internet_removal: true)")
+        
+        # Check service usage patterns (low usage)
+        if 'TV' in offer_types:
+            tv_usage = service_usage.get('tv_usage', 'unknown')
+            if tv_usage == 'low':
+                reasons.append(f"Customer barely watches TV (tv_usage: {tv_usage})")
+        
+        if 'Mobile' in offer_types:
+            mobile_usage = service_usage.get('mobile_usage', 'unknown')
+            if mobile_usage == 'low':
+                reasons.append(f"Customer has low mobile usage (mobile_usage: {mobile_usage})")
+                
+        if 'Internet' in offer_types:
+            internet_usage = service_usage.get('internet_usage', 'unknown')
+            if internet_usage == 'low':
+                reasons.append(f"Customer has low internet usage (internet_usage: {internet_usage})")
+        
+        # Check budget/price sensitivity
+        if budget_concern == 'high' and offer['price_delta'] > 0:
+            reasons.append(f"High budget concern with price increase (budget_concern_level: {budget_concern}, price_delta: ${offer['price_delta']})")
+        elif budget_concern == 'medium' and offer['price_delta'] > 50:
+            reasons.append(f"Medium budget concern with high price increase (budget_concern_level: {budget_concern}, price_delta: ${offer['price_delta']})")
+        
+        # Check billing complaints with price increases
+        if sentiment in ['negative', 'very_negative'] and 'billing_complaint' in risk_patterns:
+            if offer['price_delta'] > 0:
+                reasons.append(f"Price increase conflicts with billing complaints (sentiment: {sentiment}, billing_complaint detected)")
+            else:
+                reasons.append(f"Not aligned with budget concerns despite discount (sentiment: {sentiment}, billing_complaint detected)")
+        
+        # Check emotional state with premium offers
+        if emotion in ['anger', 'frustration'] and offer['category'] in ['upgrade', 'premium']:
+            reasons.append(f"Customer {emotion} - premium offers not suitable (emotion: {emotion}, category: {offer['category']})")
+        
+        # Check competitor mentions with high-priced offers
+        if 'competitor_mention' in risk_patterns and offer['price_delta'] > 50:
+            reasons.append(f"High-priced offer when competitor mentioned (competitor_mention detected, price_delta: ${offer['price_delta']})")
+        
+        # Check service frustration with add-ons
+        if 'service_frustration' in risk_patterns and 'add-on' in offer['category']:
+            reasons.append(f"Customer frustrated with service - additional features not recommended (service_frustration detected)")
+        
+        # Check value preference
+        if value_preference == 'price_focused' and offer['price_delta'] > 0:
+            reasons.append(f"Customer is price-focused but offer increases cost (value_preference: {value_preference}, price_delta: ${offer['price_delta']})")
+        
+        # Default reason if no specific reason found
+        if not reasons:
+            if sentiment in ['negative', 'very_negative']:
+                reasons.append(f"Not suitable for current customer sentiment (sentiment: {sentiment})")
+            elif emotion in ['anger', 'frustration', 'sadness']:
+                reasons.append(f"Not appropriate given customer emotion (emotion: {emotion})")
+            else:
+                reasons.append("Lower priority based on conversation analysis")
+        
+        return "; ".join(reasons)
 
 def simulate_conversation_example():
     """Simulate the provided conversation example"""
     
     scorer = SimpleChurnScorer()
-    
     conversation = [
-        ("Agent", "Thank you for calling customer Service, this is Jason speaking. May I have your account number please?"),
-        ("Customer", "Sure, it's 29871003."),
-        ("Agent", "Thanks, Mark. I'll need to verify your identity. I've just sent a 4-digit verification code to your registered mobile number ending in 6024. Could you read that out for me?"),
-        ("Customer", "Yep, it's 9384."),
-        ("Agent", "Perfect. Give me a moment while I pull up your account details... this may take 30 seconds. Do you mind holding?"),
-        ("Customer", "That's fine."),
-        ("Agent", "Thanks for waiting. I've got your account up. How can I help you today?"),
-        ("Customer", "I just opened my bill and it's $200 again. Last month it was $180. Why is it going up every time?"),
-        ("Agent", "I understand that's frustrating. Let me walk through your bill to identify the changes."),
-        ("Customer", "I'm telling you, it's too high for what I'm using. I barely watch TV, and I don't even know what these charges are for."),
-        ("Agent", "I see here that your promotional discount expired a month ago, and there's a rental charge for a second set-top box."),
-        ("Customer", "No one told me the promo would end. Why wouldn't you notify me? This is not okay."),
-        ("Agent", "You're absolutely right, and I apologize. We should have communicated that better. We might be able to lower your bill and give you better speeds or extras where it actually matters. Just a sec while I check what we can offer. Would you mind holding again for 30 seconds?"),
-        ("Customer", "Sure."),
-        ("Agent", "Thanks for holding. I've checked and we can offer you a plan that provides faster internet while keeping your TV, mobile and cybersecurity products at 185 dollar a month"),
-        ("Customer", "Hmm. That is Still more than what I was paying. And honestly, TMobile are cheaper."),
-        ("Agent", "I understand. Since you mentioned you barely watch TV, Do you want to remove that?"),
-        ("Customer", "How much would that cost me?"),
-        ("Agent", "So your new bill would be around $150/month & I can also add a 10 dollar discount if you subscribe for ebill which would make it $140 going forward. Your total savings would be 60 dollars a month"),
-        ("Customer", "Okay, that sounds better. I appreciate you trying. But still, it feels like I have to call every few months just to keep the price reasonable. Just to confirm, I would still be keeping all the mobile lines right?"),
-        ("Agent", "That's fair feedback, Sarah. I'll note that on your account. You shouldn't have to go through that and yes, you would keep all your products except TV"),
-        ("Customer", "Alright, let's go with that then. Please make sure the new charges reflect next month."),
-        ("Agent", "I've updated your plan and removed the rental. You'll see the changes in your next cycle. Anything else I can help you with today?"),
-        ("Customer", "No, that's all. Thanks for the help, Jason."),
-        ("Agent", "You're welcome. Thanks for being with HorizonConnect. Have a great day!")
-    ]
+    ("Agent", "Thank you for calling us, this is Alina. Can I have your account number please?"),
+    ("Customer", "Yeah, it's 75299134."),
+    ("Agent", "Thanks. And just to verify the account, am I speaking with Stephanie?"),
+    ("Customer", "Yes, that's me."),
+    ("Agent", "Great. For your security, I've just sent a 4-digit code to your mobile ending in 6641. Could you read it back for me?"),
+    ("Customer", "One sec <pause 1 sec> okay, got it. It's 4472."),
+    ("Agent", "Perfect, you're verified. Let me bring up your account details. This might take just a few seconds... Do you mind holding?"),
+    ("Customer", "Sure."),
+    ("Agent", "Thanks for waiting, Stephanie. I have your account open. How can I help you today?"),
+    ("Customer", "I'm calling to cancel my service."),
+    ("Agent", "Oh, I'm certainly sorry to hear that. We'd hate to lose you. May I ask what's led you to this decision?"),
+    ("Customer", "I just got an offer from Horizon for 1 Gbps internet plus their basic TV for $85 a month. That's $50 less than what I'm paying you."),
+    ("Agent", "I see. $85 for a Gig plan is a very aggressive offer. I'm looking at your current bill, and I see you're at $135 for our 400 Mbps plan and the 'Platinum' TV tier. I can definitely see the price gap."),
+    ("Customer", "Exactly. And frankly, I'm tired of it. I've been paying $135 forever, and every single year I have to call in and beg for some new discount. It's exhausting."),
+    ("Agent", "That makes perfect sense, and I truly apologize for that experience. It should not feel that way, especially for a loyal customer like yourself. I see you've been with us for over 8 years. Let me pull up our current retention offers to see if we can find something that better fits your needs and budget. One moment."),
+    ("Agent", "Okay, thanks for holding. Because you've been with us so long, I can apply a $20/mo loyalty credit. I can also waive your modem rental fee, which looks to be $14/mo. That would be for the next 6 months. That brings your bill down by about $34."),
+    ("Customer", "That's better, but it's still over $100, and only for 6 months. The $85 from Horizon is for a full year. And my speeds drop to a crawl every evening around 8 PM, so I'm not even getting what I pay for."),
+    ("Agent", "Understood. You're hitting on two key issues: the price and the performance. Let's tackle the speed drop first. You shouldn't be experiencing that. I'm running a diagnostic on your line now..."),
+    ("Agent", "<pause 1 sec> Okay, I see your modem is an older model. Those can struggle with network congestion in the evenings. The modem rental I offered to waive would be for a free upgrade to our new gateway. That will make a significant difference in stability and managing those peak-time speeds."),
+    ("Customer", "A new modem might help, but the price is still the main problem. I'm still nowhere near $85."),
+    ("Agent", "I understand. Let's look at the other half of your bill: the 'Platinum' TV tier. My system shows you have over 300 channels, but your primary set-top box usage is on local news and sports. Is that accurate?"),
+    ("Customer", "Yeah, honestly, I mostly stream on Netflix and Hulu. I don't even know what's in that huge TV package you have me on. I just need the local channels and maybe ESPN."),
+    ("Agent", "That's a perfect opportunity then. We can downgrade you from the 'Platinum' tier to our 'Base TV' tier. It keeps all your major local channels — ABC, CBS, NBC, Fox — plus essentials like ESPN. This change alone would save you $25 per month, and that's a permanent change, not a promotion."),
+    ("Customer", "Okay <pause 1 sec> so, let me get this straight. The $135 bill <pause 1 sec> minus $20 for the loyalty credit, and minus $25 for the smaller TV package?"),
+    ("Agent", "That's correct. That would bring your new ongoing price to $90 per month, plus tax."),
+    ("Customer", "And what about the modem? You said 6 months for the credit?"),
+    ("Agent", "My apologies, let me clarify. The $25 TV downgrade is permanent. The $20 loyalty credit, I can lock that in for a full 12 months. And I'll waive the new 3.1 modem rental fee for 12 months as well. So, you'd be at $90/mo for the next year."),
+    ("Customer", "$90/mo <pause 1 sec> that's very close to $85. And I get a new modem that will hopefully fix the slowdowns."),
+    ("Agent", "Exactly. You get a much more stable connection, and a package that's actually built for how you watch TV, all while saving $45 a month."),
+    ("Customer", "That sounds fair. Okay, Alina, you've been helpful. Let's do that. Keep the credits, change the TV, and send me the new modem."),
+    ("Agent", "That's wonderful news, Stephanie. I'm so glad we found a solution. I'm processing those changes now. The TV package change is effective immediately. The new modem will ship out today and should arrive in 2-3 business days with simple self-install instructions. I'm also adding these notes and the new pricing to your account. Is there anything else at all I can help you with today?"),
+    ("Customer", "No, that's everything. Thank you for your help."),
+    ("Agent", "You're very welcome. Thank you for giving us the chance to keep you as a customer. Have a great rest of your day."),
+]
+
+    # conversation = [
+    #     ("Agent", "Thank you for calling customer Service, this is Jason speaking. May I have your account number please?"),
+    #     ("Customer", "Sure, it's 29871003."),
+    #     ("Agent", "Thanks, Mark. I'll need to verify your identity. I've just sent a 4-digit verification code to your registered mobile number ending in 6024. Could you read that out for me?"),
+    #     ("Customer", "Yep, it's 9384."),
+    #     ("Agent", "Perfect. Give me a moment while I pull up your account details... this may take 30 seconds. Do you mind holding?"),
+    #     ("Customer", "That's fine."),
+    #     ("Agent", "Thanks for waiting. I've got your account up. How can I help you today?"),
+    #     ("Customer", "I just opened my bill and it's $200 again. Last month it was $180. Why is it going up every time?"),
+    #     ("Agent", "I understand that's frustrating. Let me walk through your bill to identify the changes."),
+    #     ("Customer", "I'm telling you, it's too high for what I'm using. I barely watch TV, and I don't even know what these charges are for."),
+    #     ("Agent", "I see here that your promotional discount expired a month ago, and there's a rental charge for a second set-top box."),
+    #     ("Customer", "No one told me the promo would end. Why wouldn't you notify me? This is not okay."),
+    #     ("Agent", "You're absolutely right, and I apologize. We should have communicated that better. We might be able to lower your bill and give you better speeds or extras where it actually matters. Just a sec while I check what we can offer. Would you mind holding again for 30 seconds?"),
+    #     ("Customer", "Sure."),
+    #     ("Agent", "Thanks for holding. I've checked and we can offer you a plan that provides faster internet while keeping your TV, mobile and cybersecurity products at 185 dollar a month"),
+    #     ("Customer", "Hmm. That is Still more than what I was paying. And honestly, TMobile are cheaper."),
+    #     ("Agent", "I understand. Since you mentioned you barely watch TV, Do you want to remove that?"),
+    #     ("Customer", "How much would that cost me?"),
+    #     ("Agent", "So your new bill would be around $150/month & I can also add a 10 dollar discount if you subscribe for ebill which would make it $140 going forward. Your total savings would be 60 dollars a month"),
+    #     ("Customer", "Okay, that sounds better. I appreciate you trying. But still, it feels like I have to call every few months just to keep the price reasonable. Just to confirm, I would still be keeping all the mobile lines right?"),
+    #     ("Agent", "That's fair feedback, Sarah. I'll note that on your account. You shouldn't have to go through that and yes, you would keep all your products except TV"),
+    #     ("Customer", "Alright, let's go with that then. Please make sure the new charges reflect next month."),
+    #     ("Agent", "I've updated your plan and removed the rental. You'll see the changes in your next cycle. Anything else I can help you with today?"),
+    #     ("Customer", "No, that's all. Thanks for the help, Jason."),
+    #     ("Agent", "You're welcome. Thanks for being with HorizonConnect. Have a great day!")
+    # ]
 #     conversation = [
 #     ("Agent", "Thank you for calling customer care, this is Rachel. May I have your account number please?"),
-#     ("Customer", "Yes, it’s 45120987."),
-#     ("Agent", "Thanks, David. For security, I’ve just sent a 4-digit verification code to your mobile ending in 4431. Could you share that code?"),
-#     ("Customer", "It’s 7261."),
+#     ("Customer", "Yes, it's 45120987."),
+#     ("Agent", "Thanks, David. For security, I've just sent a 4-digit verification code to your mobile ending in 4431. Could you share that code?"),
+#     ("Customer", "It's 7261."),
 #     ("Agent", "Great, verified. One moment while I pull up your account… do you mind holding for 20 seconds?"),
 #     ("Customer", "No problem."),
 #     ("Agent", "Thanks for holding. I have your account open now. What can I help you with today?"),
-#     ("Customer", "I just checked my bill—it’s $220 this month. Last month it was $190. Why does it keep going up?"),
+#     ("Customer", "I just checked my bill—it's $220 this month. Last month it was $190. Why does it keep going up?"),
 #     ("Agent", "I hear your concern. Let me review the line items on your bill."),
-#     ("Customer", "Honestly, it feels like I’m paying for things I don’t even use. I only use internet, and I barely touch the landline service."),
-#     ("Agent", "I see that a promotional credit on your internet expired, and you’ve also got a long-distance package on the landline that’s adding to the total."),
-#     ("Customer", "No one ever explained that to me. It’s really frustrating."),
-#     ("Agent", "You’re right, David, we should have given you a heads-up before the promo ended. Let me check if we can adjust your plan to lower your monthly cost. Would you mind holding for half a minute?"),
+#     ("Customer", "Honestly, it feels like I'm paying for things I don't even use. I only use internet, and I barely touch the landline service."),
+#     ("Agent", "I see that a promotional credit on your internet expired, and you've also got a long-distance package on the landline that's adding to the total."),
+#     ("Customer", "No one ever explained that to me. It's really frustrating."),
+#     ("Agent", "You're right, David, we should have given you a heads-up before the promo ended. Let me check if we can adjust your plan to lower your monthly cost. Would you mind holding for half a minute?"),
 #     ("Customer", "Sure, go ahead."),
-#     ("Agent", "Thank you. Here’s what I found: We can move you to a package with higher internet speed and keep your mobile, while dropping the landline package you don’t use. That would be $185/month."),
-#     ("Customer", "Hmm. That’s still higher than I’d like. I know Spectrum offers internet-only for $160."),
-#     ("Agent", "I completely understand. If you’re not using the landline, removing it will definitely help. On top of that, if you sign up for autopay, we can take another $15 off, bringing you to $170/month."),
-#     ("Customer", "Okay, that’s better. And I’d still keep my mobile line at the same price, right?"),
-#     ("Agent", "Yes, your mobile stays as is, and the landline package would be removed. Your total monthly savings would be $50 compared to what you’re paying now."),
-#     ("Customer", "Alright, let’s do that then. Please make sure the changes start next cycle."),
-#     ("Agent", "I’ve updated your account and removed the long-distance package. You’ll see the new pricing reflected on your next bill."),
-#     ("Customer", "Perfect. That’s all I needed. Thanks, Rachel."),
-#     ("Agent", "You’re very welcome, David. Thanks for being with HorizonConnect, and have a wonderful day!")
+#     ("Agent", "Thank you. Here's what I found: We can move you to a package with higher internet speed and keep your mobile, while dropping the landline package you don't use. That would be $185/month."),
+#     ("Customer", "Hmm. That's still higher than I'd like. I know Spectrum offers internet-only for $160."),
+#     ("Agent", "I completely understand. If you're not using the landline, removing it will definitely help. On top of that, if you sign up for autopay, we can take another $15 off, bringing you to $170/month."),
+#     ("Customer", "Okay, that's better. And I'd still keep my mobile line at the same price, right?"),
+#     ("Agent", "Yes, your mobile stays as is, and the landline package would be removed. Your total monthly savings would be $50 compared to what you're paying now."),
+#     ("Customer", "Alright, let's do that then. Please make sure the changes start next cycle."),
+#     ("Agent", "I've updated your account and removed the long-distance package. You'll see the new pricing reflected on your next bill."),
+#     ("Customer", "Perfect. That's all I needed. Thanks, Rachel."),
+#     ("Agent", "You're very welcome, David. Thanks for being with HorizonConnect, and have a wonderful day!")
 # ]
 
     

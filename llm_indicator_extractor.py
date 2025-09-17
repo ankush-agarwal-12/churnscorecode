@@ -1,5 +1,6 @@
 import json
 import requests
+import os
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,11 +27,15 @@ class ConversationIndicators:
     offer_indicators: OfferIndicators
     confidence_score: float
     extraction_timestamp: datetime
+    overall_sentiment: str = "neutral"
+    dominant_emotion: str = "neutral"
 
 class LLMIndicatorExtractor:
     def __init__(self):
         # HuggingFace setup instead of Ollama
-        
+        self.hf_token = os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+        if not self.hf_token:
+            raise ValueError("HUGGINGFACEHUB_API_TOKEN environment variable is required")
         self.client = InferenceClient(token=self.hf_token)
         self.model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
         
@@ -244,13 +249,9 @@ CONVERSATION CONTEXT:
         return f"""{context_section}CURRENT CUSTOMER MESSAGE:
 "{customer_message}"
 
-Analyze the customer's perspective and intent based on the conversation flow. Consider:
-1. What the customer is responding to (from context)
-2. What the customer is agreeing/disagreeing with
-3. What services or changes are being discussed
-4. The customer's attitude toward proposed solutions
+Analyze the customer's perspective and intent based on the conversation flow. Consider what the customer is responding to (from context), what the customer is agreeing/disagreeing with, what services or changes are being discussed, and the customer's attitude toward proposed solutions.
 
-Extract the following indicators in JSON format:
+Extract the following indicators in JSON format in one go only:
 
 {{
     "risk_indicators": {{
@@ -287,13 +288,23 @@ Extract the following indicators in JSON format:
 }}
 
 Detection Guidelines:
+SENTIMENT ANALYSIS:
+- overall_sentiment MUST be one of: "very_negative", "negative", "neutral", "positive", "very_positive"
+- Base this on the overall tone and satisfaction level in the customer's message
+
+EMOTION ANALYSIS:
+- dominant_emotion MUST be one of: "anger", "disgust", "fear", "joy", "neutral", "sadness", "surprise","frustration"
+- Choose the primary emotion expressed by the customer
+
 
 RISK INDICATORS:
 - competitor_mention: Look for mentions of other providers (TMobile, Verizon, etc.) in the conversation
 - billing_complaint: Customer complaining about bills, charges, or pricing
 - service_frustration: Customer frustrated with service quality or features
 - process_frustration: Customer frustrated with company processes, support, etc.
-- positive_resolution: Customer accepting solutions, expressing satisfaction
+- positive_resolution: Customer accepting solutions, expressing satisfaction with outcomes (NOT routine cooperation)
+  * Examples: "That works for me", "Alright, let's go with that", "Perfect, that solves my problem"
+  * NOT positive: Providing account info, agreeing to hold, routine responses like "sure", "okay" to requests
 
 SERVICE USAGE PATTERNS:
 - tv_usage: "low" if customer mentions barely watching TV, not using TV much
@@ -318,6 +329,7 @@ VALUE PREFERENCES:
 - "price_focused" if customer primarily concerned with cost reduction
 - "feature_focused" if customer wants more features/services
 - "balanced" if customer considers both price and features
+
 
 Consider the conversation flow - if agent suggests TV removal and customer responds positively ("Alright, let's go with that"), this indicates tv_removal interest even if not explicitly stated.
 
@@ -415,7 +427,9 @@ IMPORTANT: RETURN ONLY VALID JSON."""
                 risk_indicators=risk_indicators,
                 offer_indicators=offer_indicators,
                 confidence_score=0.0,  # Default since not in simplified format
-                extraction_timestamp=datetime.now()
+                extraction_timestamp=datetime.now(),
+                overall_sentiment=parsed.get("overall_sentiment", "neutral"),
+                dominant_emotion=parsed.get("dominant_emotion", "neutral")
             )
             
         except json.JSONDecodeError as e:
@@ -539,10 +553,15 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         """
         Get comprehensive analysis including sentiment, emotion, risk patterns, and filtered offers
         """
+        # print(f"\n🔍 COMPREHENSIVE ANALYSIS STARTED")
+        # print(f"📨 Customer message: {customer_message[:100]}{'...' if len(customer_message) > 100 else ''}")
+        # print(f"👤 Current customer profile: {self.customer_profile}")
+        
         # Extract indicators
         indicators = self.extract_indicators(customer_message, agent_context)
         
         if not indicators:
+            print("❌ Failed to extract indicators")
             return {
                 "error": "Failed to extract indicators",
                 "sentiment": "unknown",
@@ -553,27 +572,47 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         
         # Get detected risk patterns
         detected_risks = self.get_detected_risk_patterns(indicators)
+        print(f"🚨 Detected risk patterns: {detected_risks}")
         
         # Filter and rank offers based on indicators
         filtered_offers = self.filter_offers_by_indicators(indicators)
+        print(f"🎯 Filtered offers count: {len(filtered_offers)}")
         
-        return {
+        # Add offer indicators to response for debugging
+        analysis_result = {
             "sentiment": self._get_parsed_sentiment(indicators),
             "emotion": self._get_parsed_emotion(indicators),
             "risk_patterns": detected_risks,
             "filtered_offers": filtered_offers,
+            "offer_indicators": {
+                "service_usage": indicators.offer_indicators.service_usage_patterns,
+                "budget_concern_level": indicators.offer_indicators.price_sensitivity.get("budget_concern_level", "none"),
+                "service_removal_interest": {
+                    "tv_removal": indicators.offer_indicators.service_usage_patterns.get("tv_removal_interest", False),
+                    "mobile_removal": indicators.offer_indicators.service_usage_patterns.get("mobile_removal_interest", False),
+                    "internet_removal": indicators.offer_indicators.service_usage_patterns.get("internet_removal_interest", False)
+                },
+                "value_preference": indicators.offer_indicators.value_preferences.get("value_preference", "balanced")
+            },
             "tv_usage_analysis": self._get_tv_usage_analysis(indicators),
             "price_analysis": self._get_price_analysis(indicators)
         }
+        
+        # print(f"✅ COMPREHENSIVE ANALYSIS COMPLETED")
+        return analysis_result
     
     def filter_offers_by_indicators(self, indicators: ConversationIndicators) -> List[Dict]:
         """Filter offers based on simple rules - no scoring, just filtering and sorting"""
+        
+        # print(f"\n🔧 OFFER FILTERING STARTED")
+        # print(f"📊 Current customer profile: {self.customer_profile}")
         
         # Initialize offers from global filtered offers or all offers
         if self.global_filtered_offers is None:
             self.global_filtered_offers = [offer.copy() for offer in self.initial_offers]
         
         current_offers = [offer.copy() for offer in self.global_filtered_offers]
+        print(f"📦 Starting with {len(current_offers)} offers")
         
         # Extract indicators
         budget_concern = indicators.offer_indicators.price_sensitivity.get("budget_concern_level", "none")
@@ -590,6 +629,13 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         internet_removal_interest = indicators.offer_indicators.service_usage_patterns.get("internet_removal_interest", False)
         
         customer_mrc = self.customer_profile["current_mrc"]
+        # print(f"💰 Customer MRC: ${customer_mrc}")
+        # print(f"📊 Filtering indicators:")
+        # print(f"   Budget concern: {budget_concern}")
+        # print(f"   Competitor mentioned: {competitor_mentioned}")
+        # print(f"   TV usage: {tv_usage}, removal interest: {tv_removal_interest}")
+        # print(f"   Mobile usage: {mobile_usage}, removal interest: {mobile_removal_interest}")
+        # print(f"   Internet usage: {internet_usage}, removal interest: {internet_removal_interest}")
         
         # Step 1: Remove offers based on service removal interest
         offers_to_remove = []
@@ -618,17 +664,31 @@ IMPORTANT: RETURN ONLY VALID JSON."""
             current_offers.pop(i)
         
         # Step 2: Filter based on budget concerns and customer MRC
+        print(f"\n💰 STEP 2: Budget filtering (budget_concern: {budget_concern}, customer_mrc: ${customer_mrc})")
+        offers_before_budget = len(current_offers)
+        
         if budget_concern == "high":
             # Remove offers above current MRC
+            offers_above_mrc = [offer for offer in current_offers if offer["price_delta"] > customer_mrc]
             current_offers = [offer for offer in current_offers if offer["price_delta"] <= customer_mrc]
             filtering_reason = f"High budget concern: Removed offers above current MRC ${customer_mrc}"
+            print(f"   Removed {len(offers_above_mrc)} offers above ${customer_mrc}")
+            for offer in offers_above_mrc:
+                print(f"     - {offer['offer_id']}: ${offer['price_delta']} > ${customer_mrc}")
         elif budget_concern == "medium":
             # Keep offers below customer MRC, sort higher to lower
+            offers_at_or_above_mrc = [offer for offer in current_offers if offer["price_delta"] >= customer_mrc]
             current_offers = [offer for offer in current_offers if offer["price_delta"] < customer_mrc]
             current_offers.sort(key=lambda x: x["price_delta"], reverse=True)
             filtering_reason = f"Medium budget concern: Offers below ${customer_mrc}, sorted higher to lower"
+            print(f"   Removed {len(offers_at_or_above_mrc)} offers at/above ${customer_mrc}")
+            for offer in offers_at_or_above_mrc:
+                print(f"     - {offer['offer_id']}: ${offer['price_delta']} >= ${customer_mrc}")
         else:
             filtering_reason = "No budget filtering applied"
+        
+        print(f"   Offers after budget filtering: {len(current_offers)} (was {offers_before_budget})")
+        print(f"   Filtering reason: {filtering_reason}")
         
         # Step 3: Handle service usage (low usage moves offers to bottom)
         main_offers = []
@@ -674,6 +734,11 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         
         # Update global filtered offers
         self.global_filtered_offers = final_offers
+        
+        print(f"\n🎯 OFFER FILTERING COMPLETED")
+        # print(f"   Final offers count: {len(final_offers)}")
+        # print(f"   Main offers: {len(main_offers)}, Low usage offers: {len(low_usage_offers)}")
+        # print(f"   Customer profile used: {self.customer_profile['name']} (MRC: ${self.customer_profile['current_mrc']})")
         
         return final_offers
     
