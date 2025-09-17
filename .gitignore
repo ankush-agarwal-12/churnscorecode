@@ -13,6 +13,9 @@ env
 # Local extras
 extras/
 
+# Test files with secrets
+tryinferencehf.py
+
 # Sub-repo (already under Git)
 live-retention/
 
