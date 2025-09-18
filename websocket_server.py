@@ -42,6 +42,11 @@ class WebSocketChurnServer:
         self.accumulated_messages = []
         self.churn_score_lock = asyncio.Lock()  # Thread safety for churn score updates
         
+        # Enhanced context tracking for LLM calls
+        self.messages_since_last_llm = []  # Messages accumulated since last LLM processing
+        self.previous_context_messages = []  # Previous context from before last LLM call (for continuity)
+        self.last_llm_call_index = 0  # Track where we last processed with LLM
+        
         # Parse environment variables for processing mode
         processing_mode = os.getenv('PROCESSING_MODE', 'rule').lower()
         if processing_mode == 'llm':
@@ -140,7 +145,8 @@ class WebSocketChurnServer:
             # Hybrid mode - rule-based runs normally, LLM supplements
             self.churn_detector.churn_scorer.use_llm_indicators = False
             self.churn_detector.churn_scorer.use_llm_offer_filtering = False
-            print("🔄 Churn detector configured for hybrid processing")
+            self.churn_detector.churn_scorer.use_hybrid_processing = True  # Set hybrid flag for thresholds
+            print("🔄 Churn detector configured for hybrid processing (pattern threshold: 0.6, emotion threshold: 0.7)")
         else:
             # Rule-based only mode
             self.churn_detector.churn_scorer.use_llm_indicators = False
@@ -167,6 +173,18 @@ class WebSocketChurnServer:
             if clear_data and self.churn_detector:
                 print("Clearing conversation data...")
                 self.churn_detector.churn_scorer.reset_conversation()
+                
+                # Reset enhanced context tracking
+                self.messages_since_last_llm = []
+                self.previous_context_messages = []
+                self.last_llm_call_index = 0
+                self.accumulated_messages = []
+                print("🔄 Reset enhanced LLM context tracking")
+                
+                # Also reset LLM extractor offers
+                if self.churn_detector.churn_scorer.llm_extractor:
+                    self._reset_llm_extractor_offers()
+                
                 await self.broadcast_to_clients({
                     'type': 'conversation_cleared',
                     'message': 'Conversation data cleared'
@@ -406,13 +424,24 @@ class WebSocketChurnServer:
             
             # Accumulate messages for LLM processing if LLM or hybrid mode is enabled
             if self.use_llm_processing or self.use_hybrid_processing:
-                # Merge consecutive messages from same speaker before accumulating
-                if self.accumulated_messages and self.accumulated_messages[-1]['speaker'] == speaker:
+                # Track messages since last LLM call for enhanced context
+                if self.messages_since_last_llm and self.messages_since_last_llm[-1]['speaker'] == speaker:
                     # Same speaker continuing - merge the messages
+                    self.messages_since_last_llm[-1]['text'] += ' ' + transcript_data
+                    self.messages_since_last_llm[-1]['timestamp'] = datetime.now()
+                else:
+                    # New speaker or first message - add as new message
+                    self.messages_since_last_llm.append({
+                        'speaker': speaker,
+                        'text': transcript_data,
+                        'timestamp': datetime.now()
+                    })
+                
+                # Also maintain the old accumulated_messages for backward compatibility
+                if self.accumulated_messages and self.accumulated_messages[-1]['speaker'] == speaker:
                     self.accumulated_messages[-1]['text'] += ' ' + transcript_data
                     self.accumulated_messages[-1]['timestamp'] = datetime.now()
                 else:
-                    # New speaker or first message - add as new message
                     self.accumulated_messages.append({
                         'speaker': speaker,
                         'text': transcript_data,
@@ -488,13 +517,13 @@ class WebSocketChurnServer:
             while (self.use_llm_processing or self.use_hybrid_processing) and self.is_recording:
                 await asyncio.sleep(self.llm_interval)
                 
-                if self.accumulated_messages:
+                if self.messages_since_last_llm:
                     mode_name = "LLM-only" if self.use_llm_processing else "Hybrid"
-                    print(f"🤖 {mode_name} mode: Processing {len(self.accumulated_messages)} accumulated messages with LLM")
+                    print(f"🤖 {mode_name} mode: Processing {len(self.messages_since_last_llm)} messages since last LLM call")
                     await self.process_with_llm()
                 else:
                     mode_name = "LLM-only" if self.use_llm_processing else "Hybrid"
-                    print(f"🤖 {mode_name} mode: No new messages to process with LLM")
+                    print(f"🤖 {mode_name} mode: No new messages since last LLM call")
                     
         except asyncio.CancelledError:
             print("🤖 LLM processing loop cancelled")
@@ -502,65 +531,84 @@ class WebSocketChurnServer:
             print(f"Error in LLM processing loop: {e}")
     
     async def process_with_llm(self):
-        """Process accumulated messages with LLM analysis"""
-        if not self.accumulated_messages:
+        """Process accumulated messages with LLM analysis using enhanced context"""
+        if not self.messages_since_last_llm:
             return
         
         try:
-            # Build conversation context - use last 6-8 messages for 3-4 conversation turns
-            context_messages = []
+            # Enhanced context building: Include ALL messages since last LLM call + previous context
+            print(f"🤖 Enhanced LLM Processing:")
+            print(f"   Messages since last LLM call: {len(self.messages_since_last_llm)}")
+            print(f"   Previous context messages: {len(self.previous_context_messages)}")
+            
+            # Build comprehensive context
+            all_context_messages = []
             current_message = ""
             current_speaker = ""
             
-            # Limit to recent conversation for better LLM context (last 8 messages max)
-            recent_messages = self.accumulated_messages[-8:] if len(self.accumulated_messages) > 8 else self.accumulated_messages
+            # Part 1: Add previous context (1-2 message pairs from before last LLM call)
+            if self.previous_context_messages:
+                print(f"   Including previous context ({len(self.previous_context_messages)} messages):")
+                for i, msg in enumerate(self.previous_context_messages):
+                    all_context_messages.append(f"{msg['speaker']}: {msg['text']}")
+                    print(f"     Prev {i+1}. {msg['speaker']}: {msg['text'][:60]}{'...' if len(msg['text']) > 60 else ''}")
             
-            if len(recent_messages) >= 1:
-                last_msg = recent_messages[-1]
+            # Part 2: Add ALL messages since last LLM call (these haven't been processed yet)
+            if len(self.messages_since_last_llm) >= 1:
+                # The last message is what we want to analyze
+                last_msg = self.messages_since_last_llm[-1]
                 current_message = last_msg['text']
                 current_speaker = last_msg['speaker']
                 
-                # Build context from previous messages (excluding the current one) - aim for 3-4 turns
-                context_msgs = recent_messages[:-1]  # All except the last one
-                for msg in context_msgs:
-                    context_messages.append(f"{msg['speaker']}: {msg['text']}")
+                # Add all messages except the last one to context
+                messages_for_context = self.messages_since_last_llm[:-1]
+                print(f"   Messages since last LLM (for context): {len(messages_for_context)}")
+                for i, msg in enumerate(messages_for_context):
+                    all_context_messages.append(f"{msg['speaker']}: {msg['text']}")
+                    print(f"     New {i+1}. {msg['speaker']}: {msg['text'][:60]}{'...' if len(msg['text']) > 60 else ''}")
             
             if not current_message:
                 print("⚠️ No current message to analyze")
                 return
             
-            # If agent was speaking, analyze the last customer message instead
-            if current_speaker == "Agent" and len(recent_messages) >= 2:
-                # Find the last customer message in recent messages
-                for i in range(len(recent_messages) - 2, -1, -1):
-                    if recent_messages[i]['speaker'] == "Customer":
-                        current_message = recent_messages[i]['text']
+            # If agent was the last speaker, find the last customer message to analyze
+            if current_speaker == "Agent" and len(self.messages_since_last_llm) >= 2:
+                print(f"   → Last speaker was Agent, finding last Customer message to analyze...")
+                for i in range(len(self.messages_since_last_llm) - 2, -1, -1):
+                    if self.messages_since_last_llm[i]['speaker'] == "Customer":
+                        current_message = self.messages_since_last_llm[i]['text']
                         current_speaker = "Customer"
-                        print(f"   → Agent was speaking, switched to analyze customer message: '{current_message[:50]}{'...' if len(current_message) > 50 else ''}'")
+                        print(f"   → Found Customer message to analyze: '{current_message[:50]}{'...' if len(current_message) > 50 else ''}'")
                         
-                        # Rebuild context excluding this customer message
-                        context_messages = []
-                        for j, msg in enumerate(recent_messages):
+                        # Rebuild context excluding this customer message we're analyzing
+                        all_context_messages = []
+                        
+                        # Re-add previous context
+                        for msg in self.previous_context_messages:
+                            all_context_messages.append(f"{msg['speaker']}: {msg['text']}")
+                        
+                        # Re-add messages since last LLM, excluding the one we're analyzing
+                        for j, msg in enumerate(self.messages_since_last_llm):
                             if j != i:  # Skip the customer message we're analyzing
-                                context_messages.append(f"{msg['speaker']}: {msg['text']}")
+                                all_context_messages.append(f"{msg['speaker']}: {msg['text']}")
                         break
             
-            print(f"🤖 Processing {len(self.accumulated_messages)} accumulated messages with LLM")
-            print(f"🤖 LLM Processing ({len(recent_messages)} recent messages):")
-            print(f"   Analyzing {current_speaker} message: '{current_message[:50]}{'...' if len(current_message) > 50 else ''}'")
-            if context_messages:
-                print(f"   Context ({len(context_messages)} messages for 3-4 conversation turns):")
-                for i, ctx_msg in enumerate(context_messages, 1):  # Show ALL context messages
-                    print(f"     {i}. {ctx_msg[:80]}{'...' if len(ctx_msg) > 80 else ''}")
-            else:
-                print(f"   No context messages")
+            print(f"   → Analyzing {current_speaker} message: '{current_message[:50]}{'...' if len(current_message) > 50 else ''}'")
+            print(f"   → Total context messages: {len(all_context_messages)}")
             
-            # Get comprehensive analysis from LLM
+            if all_context_messages:
+                print(f"   → Full context preview:")
+                for i, ctx_msg in enumerate(all_context_messages[-6:], 1):  # Show last 6 context messages
+                    print(f"     {i}. {ctx_msg[:80]}{'...' if len(ctx_msg) > 80 else ''}")
+                if len(all_context_messages) > 6:
+                    print(f"     ... and {len(all_context_messages) - 6} more context messages")
+            
+            # Get comprehensive analysis from LLM with enhanced context
             analysis = await asyncio.get_event_loop().run_in_executor(
                 None, 
                 self.churn_detector.churn_scorer.llm_extractor.get_comprehensive_analysis,
                 current_message,
-                "\n".join(context_messages)
+                "\n".join(all_context_messages)
             )
             
             if "error" in analysis:
@@ -574,7 +622,7 @@ class WebSocketChurnServer:
                     self._process_churn_from_llm_analysis,
                     analysis,
                     current_message,
-                    "\n".join(context_messages)
+                    "\n".join(all_context_messages)
                 )
             
             current_score = self.churn_detector.churn_scorer.current_score
@@ -643,6 +691,9 @@ class WebSocketChurnServer:
                     }
                     await self.broadcast_to_clients(offers_update)
             
+            # Update context tracking after successful LLM processing
+            self._update_llm_context_tracking()
+            
             # Clear processed messages
             self.accumulated_messages = []
             
@@ -650,6 +701,33 @@ class WebSocketChurnServer:
             print(f"❌ Error in LLM processing: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _update_llm_context_tracking(self):
+        """Update context tracking after successful LLM processing"""
+        try:
+            # Store 1-2 message pairs (2-4 messages) as previous context for next LLM call
+            # This provides continuity between LLM calls
+            context_to_keep = 4  # Keep last 2 conversation turns (agent + customer pairs)
+            
+            if len(self.messages_since_last_llm) > context_to_keep:
+                # Keep the last few messages as previous context for next call
+                self.previous_context_messages = self.messages_since_last_llm[-context_to_keep:]
+            else:
+                # If we have fewer messages, keep all of them as context
+                self.previous_context_messages = self.messages_since_last_llm.copy()
+            
+            print(f"🔄 Updated context tracking:")
+            print(f"   Previous context messages: {len(self.previous_context_messages)}")
+            if self.previous_context_messages:
+                for i, msg in enumerate(self.previous_context_messages):
+                    print(f"     Kept {i+1}. {msg['speaker']}: {msg['text'][:50]}{'...' if len(msg['text']) > 50 else ''}")
+            
+            # Clear messages since last LLM call - they've been processed
+            self.messages_since_last_llm = []
+            print(f"   Cleared messages_since_last_llm - ready for new messages")
+            
+        except Exception as e:
+            print(f"Error updating LLM context tracking: {e}")
     
     def _process_churn_from_llm_analysis(self, llm_analysis: dict, customer_message: str, context: str):
         """Process churn scoring using existing LLM analysis results"""
@@ -798,6 +876,11 @@ class WebSocketChurnServer:
             if self.churn_detector:
                 print("Clearing conversation data...")
                 self.churn_detector.churn_scorer.reset_conversation()
+                
+                # Also reset LLM extractor offers
+                if self.churn_detector.churn_scorer.llm_extractor:
+                    self._reset_llm_extractor_offers()
+                
                 self.churn_detector.current_speaker = None
                 self.churn_detector.current_agent_message = ""
                 self.churn_detector.current_customer_message = ""
@@ -805,10 +888,13 @@ class WebSocketChurnServer:
                 self.transcript_messages = []  # Clear transcript messages
                 
                 # Clear LLM processing data
-                if self.use_llm_processing:
+                if self.use_llm_processing or self.use_hybrid_processing:
                     self.accumulated_messages = []
+                    self.messages_since_last_llm = []
+                    self.previous_context_messages = []
+                    self.last_llm_call_index = 0
                     self.last_llm_processing_time = datetime.now()
-                    print("🤖 Cleared LLM accumulated messages")
+                    print("🤖 Cleared all LLM tracking data (accumulated messages, context tracking)")
                 
                 await self.broadcast_to_clients({
                     'type': 'conversation_cleared',
@@ -1016,6 +1102,21 @@ class WebSocketChurnServer:
             # Set baseline score first
             await self._set_customer_baseline(churn_risk_score)
             
+            # Reset conversation and offers for new customer
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                self.churn_detector.churn_scorer.reset_conversation
+            )
+            print(f"🔄 Reset conversation state for new customer: {customer_data.get('name', 'Unknown')}")
+            
+            # Reset LLM extractor global filtered offers if it exists
+            if self.churn_detector.churn_scorer.llm_extractor:
+                await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    self._reset_llm_extractor_offers
+                )
+                print(f"🔄 Reset LLM extractor offers for new customer")
+            
             # Set customer profile data in the churn scorer (for LLM extractor)
             await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -1036,6 +1137,12 @@ class WebSocketChurnServer:
         except Exception as e:
             print(f"Error setting customer profile: {e}")
             raise
+
+    def _reset_llm_extractor_offers(self):
+        """Reset the LLM extractor's global filtered offers to start fresh"""
+        if self.churn_detector.churn_scorer.llm_extractor:
+            self.churn_detector.churn_scorer.llm_extractor.global_filtered_offers = None
+            print("🔄 Reset LLM extractor global_filtered_offers to None")
 
     async def _process_churn_scoring_async(self, customer_text: str, agent_context: str):
         """Process churn scoring asynchronously to avoid blocking audio processing"""
@@ -1124,19 +1231,30 @@ class WebSocketChurnServer:
             self.use_hybrid_processing = False
             self.churn_detector.churn_scorer.use_llm_indicators = True
             self.churn_detector.churn_scorer.use_llm_offer_filtering = True
+            self.churn_detector.churn_scorer.use_hybrid_processing = False  # Reset hybrid flag
             print(f"🤖 Switched to LLM-only processing mode")
         elif mode.lower() == 'hybrid':
             self.use_llm_processing = False
             self.use_hybrid_processing = True
             self.churn_detector.churn_scorer.use_llm_indicators = False
             self.churn_detector.churn_scorer.use_llm_offer_filtering = False
-            print(f"🔄 Switched to Hybrid processing mode")
+            self.churn_detector.churn_scorer.use_hybrid_processing = True  # Set hybrid flag for thresholds
+            print(f"🔄 Switched to Hybrid processing mode (pattern threshold: 0.6, emotion threshold: 0.7)")
         else:  # 'rule' or any other value defaults to rule-based
             self.use_llm_processing = False
             self.use_hybrid_processing = False
             self.churn_detector.churn_scorer.use_llm_indicators = False
             self.churn_detector.churn_scorer.use_llm_offer_filtering = False
+            self.churn_detector.churn_scorer.use_hybrid_processing = False  # Reset hybrid flag
             print(f"🧠 Switched to Rule-based only processing mode")
+        
+        # Reset context tracking when switching modes
+        if mode.lower() in ['llm', 'hybrid']:
+            # Reset context tracking for clean start in LLM/hybrid mode
+            self.messages_since_last_llm = []
+            self.previous_context_messages = []
+            self.accumulated_messages = []
+            print(f"🔄 Reset context tracking for {mode} mode")
         
         # Start or stop LLM processing loop as needed
         if (self.use_llm_processing or self.use_hybrid_processing):
@@ -1147,6 +1265,11 @@ class WebSocketChurnServer:
             if self.llm_task and not self.llm_task.done():
                 self.llm_task.cancel()
                 print(f"⏹️ Stopped LLM processing loop")
+            # Clear LLM tracking when switching to rule-based mode
+            self.messages_since_last_llm = []
+            self.previous_context_messages = []
+            self.accumulated_messages = []
+            print(f"🔄 Cleared LLM tracking for rule-based mode")
         
         # Notify all clients of the mode change
         new_mode = self.get_current_processing_mode()

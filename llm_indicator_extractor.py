@@ -79,7 +79,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "BB+PKG_$240TVplus_MOB",
                 "title": "BB+PKG_$240TVplus_MOB",
-                "description": "Enhanced TV Plus Bundle with Premium Channels\nInternet, TV, Mobile",
+                "description": "TV Bundle with Premium Channels\nInternet, TV, Mobile",
                 "value_proposition": "Premium entertainment package",
                 "price_delta": 240,
                 "product_types": ["Internet", "TV", "Mobile"],
@@ -91,7 +91,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "BB_$1851gig_TVMOB_CSpourPkg_1yr",
                 "title": "BB_$1851gig_TVMOB_CSpourPkg_1yr", 
-                "description": "1 Gig Internet plan with TV and Mobile bundle for 1 year\nInternet, TV, Mobile",
+                "description": "1 Gig Internet + TV + Mobile bundle\nInternet, TV, Mobile",
                 "value_proposition": "High-speed triple play",
                 "price_delta": 185,
                 "product_types": ["Internet", "TV", "Mobile"],
@@ -103,7 +103,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "Pricelock_$160TVbasic_MOB_2yr",
                 "title": "Pricelock_$160TVbasic_MOB_2yr",
-                "description": "Basic TV and Mobile bundle with Internet access, price locked for 2 years\nInternet, TV, Mobile",
+                "description": "Basic TV + Mobile with Internet, 2-year price lock\nInternet, TV, Mobile",
                 "value_proposition": "Price stability guarantee",
                 "price_delta": 160,
                 "product_types": ["Internet", "TV", "Mobile"],
@@ -127,7 +127,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "BB+PKG_$260Mobile_Voice_MOB",
                 "title": "BB+PKG_$260Mobile_Voice_MOB",
-                "description": "Premium Voice Services with Enhanced Mobile Features\nInternet, Mobile, Voice",
+                "description": "Premium Voice + Enhanced Mobile Features\nInternet, Mobile, Voice",
                 "value_proposition": "Premium communication suite",
                 "price_delta": 260,
                 "product_types": ["Internet", "Mobile", "Voice"],
@@ -139,7 +139,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "$240Data_MOB_2gigabitpkg_2yr",
                 "title": "$240Data_MOB_2gigabitpkg_2yr",
-                "description": "Ultra-Fast 2 Gigabit Data Package for Power Users\nInternet, Mobile",
+                "description": "Ultra-Fast 2 Gigabit Data Package\nInternet, Mobile",
                 "value_proposition": "Ultra-high speed connectivity",
                 "price_delta": 240,
                 "product_types": ["Internet", "Mobile"],
@@ -151,7 +151,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "Pricelock_$230Bperf_Voice_MOB_pkg_2yr",
                 "title": "Pricelock_$230Bperf_Voice_MOB_pkg_2yr",
-                "description": "High-Performance Bundle with 2-Year Price Guarantee\nInternet, Mobile, Voice",
+                "description": "High-Performance Bundle, 2-Year Price Lock\nInternet, Mobile, Voice",
                 "value_proposition": "Performance with price protection",
                 "price_delta": 230,
                 "product_types": ["Internet", "Mobile", "Voice"],
@@ -163,7 +163,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "$2000Data_MOB_gigabitExtraPkg_2yr",
                 "title": "$2000Data_MOB_gigabitExtraPkg_2yr",
-                "description": "Enterprise-Grade Gigabit Extra with Premium Features\nInternet, Mobile",
+                "description": "Enterprise-Grade Gigabit + Premium Features\nInternet, Mobile",
                 "value_proposition": "Enterprise-level performance",
                 "price_delta": 200,
                 "product_types": ["Internet", "Mobile"],
@@ -175,7 +175,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "BB_$150Mobile_UNLTplus_2yr",
                 "title": "BB_$150Mobile_UNLTplus_2yr",
-                "description": "Unlimited Plus Package with Enhanced Data Allowances\nInternet, Mobile",
+                "description": "Unlimited Plus with Enhanced Data\nInternet, Mobile",
                 "value_proposition": "Unlimited data value",
                 "price_delta": 150,
                 "product_types": ["Internet", "Mobile"],
@@ -187,7 +187,7 @@ class LLMIndicatorExtractor:
             {
                 "offer_id": "Bundle_$140Internet+Mobile_2yr",
                 "title": "Bundle_$140Internet+Mobile_2yr",
-                "description": "Essential Dual Bundle with 2-Year Contract Savings\nInternet, Mobile",
+                "description": "Essential Internet + Mobile Bundle\nInternet, Mobile",
                 "value_proposition": "Essential value bundle",
                 "price_delta": 140,
                 "product_types": ["Internet", "Mobile"],
@@ -195,6 +195,54 @@ class LLMIndicatorExtractor:
                 "retention_offer": True,
                 "category": "bundle",
                 "priority": 1
+            },
+            {
+                "offer_id": "PremiumTV_$135Internet+TV_1yr",
+                "title": "PremiumTV_$135Internet+TV_1yr",
+                "description": "Premium Internet + Platinum TV (300+ channels)\nIncludes loyalty discount with 1-year contract",
+                "value_proposition": "Full-featured premium bundle",
+                "price_delta": 135,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "retention_offer": True,
+                "category": "bundle",
+                "priority": 1
+            },
+            {
+                "offer_id": "Enhanced_$120Internet+TV_1yr",
+                "title": "Enhanced_$120Internet+TV_1yr",
+                "description": "400 Mbps Internet + Sports/Entertainment TV\n1-year contract savings",
+                "value_proposition": "Balanced price and premium channels",
+                "price_delta": 120,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "retention_offer": True,
+                "category": "bundle",
+                "priority": 2
+            },
+            {
+                "offer_id": "Core_$105Internet+TV_1yr",
+                "title": "Core_$105Internet+TV_1yr",
+                "description": "400 Mbps Internet + Essentials TV (local + ESPN)\n1-year savings plan",
+                "value_proposition": "Affordable core plan with essential channels",
+                "price_delta": 105,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "retention_offer": True,
+                "category": "bundle",
+                "priority": 3
+            },
+            {
+                "offer_id": "BasicTV_$90Internet+TV_1yr",
+                "title": "BasicTV_$90Internet+TV_1yr",
+                "description": "400 Mbps Internet + Base TV (local + ESPN)\nIncludes modem upgrade and loyalty credit",
+                "value_proposition": "Best value essential package",
+                "price_delta": 90,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "retention_offer": True,
+                "category": "bundle",
+                "priority": 4
             }
         ]
 
@@ -250,7 +298,7 @@ CONVERSATION CONTEXT:
 "{customer_message}"
 
 Analyze the customer's perspective and intent based on the conversation flow. Consider what the customer is responding to (from context), what the customer is agreeing/disagreeing with, what services or changes are being discussed, and the customer's attitude toward proposed solutions.
-
+The indicators should just be based on the CURRENT CUSTOMER MESSAGE, not the context.
 Extract the following indicators in JSON format in one go only:
 
 {{
@@ -300,11 +348,11 @@ EMOTION ANALYSIS:
 RISK INDICATORS:
 - competitor_mention: Look for mentions of other providers (TMobile, Verizon, etc.) in the conversation
 - billing_complaint: Customer complaining about bills, charges, or pricing
-- service_frustration: Customer frustrated with service quality or features
-- process_frustration: Customer frustrated with company processes, support, etc.
+- service_frustration: Customer frustrated with core product/service quality, features, or performance.
+- process_frustration: When a customer is unhappy with the company's processes, policies, or support experience. Its about the journey of getting help, resolving issues, or interacting with the company, not the service itself.
 - positive_resolution: Customer accepting solutions, expressing satisfaction with outcomes (NOT routine cooperation)
   * Examples: "That works for me", "Alright, let's go with that", "Perfect, that solves my problem"
-  * NOT positive: Providing account info, agreeing to hold, routine responses like "sure", "okay" to requests
+  * NOT positive: Providing account info, agreeing to hold, routine responses like "sure", "okay" to requests, initial verification of account
 
 SERVICE USAGE PATTERNS:
 - tv_usage: "low" if customer mentions barely watching TV, not using TV much
@@ -318,6 +366,7 @@ SERVICE REMOVAL INTEREST:
   * Customer asks about removing TV
   * Customer accepts TV removal ("Alright, let's go with that" after TV removal discussion)
   * Agent mentions removing TV and customer shows interest or agreement
+  * Downgrading to a lower tier TV plan does not count as removal interest
 - Similar logic for mobile_removal and internet_removal
 
 BUDGET CONCERNS:
@@ -723,7 +772,7 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         # Combine main offers and low usage offers
         final_offers = main_offers + low_usage_offers
         
-        # Add filtering explanation to each offer
+        # Add filtering explanation and acceptance remarks to each offer
         for offer in final_offers:
             offer["filtering_explanation"] = []
             offer["filtering_explanation"].append(filtering_reason)
@@ -731,6 +780,9 @@ IMPORTANT: RETURN ONLY VALID JSON."""
             
             if hasattr(offer, 'low_usage_reason'):
                 offer["filtering_explanation"].append(f"Low usage: {offer['low_usage_reason']}")
+            
+            # Add simple acceptance reason for filtered offers
+            offer["acceptance_reason"] = self._generate_simple_acceptance_reason(offer, competitor_mentioned)
         
         # Update global filtered offers
         self.global_filtered_offers = final_offers
@@ -741,6 +793,32 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         # print(f"   Customer profile used: {self.customer_profile['name']} (MRC: ${self.customer_profile['current_mrc']})")
         
         return final_offers
+
+    def _generate_simple_acceptance_reason(self, offer: Dict, competitor_mentioned: bool) -> str:
+        """Generate simple acceptance reason for offers that pass filtering"""
+        customer_mrc = self.customer_profile["current_mrc"]
+        
+        # Check if it's a retention offer with savings
+        if offer.get('retention_offer', False):
+            if offer['price_delta'] < customer_mrc:
+                savings = customer_mrc - offer['price_delta']
+                return f"Retention offer: saves ${savings}/month"
+            else:
+                return "Retention offer: loyalty benefits"
+        
+        # Check for competitive pricing
+        if competitor_mentioned:
+            return "Competitive pricing for retention"
+        
+        # Check for savings
+        if offer['price_delta'] < customer_mrc:
+            savings = customer_mrc - offer['price_delta']
+            return f"Good value: saves ${savings}/month"
+        elif offer['price_delta'] == customer_mrc:
+            return "Matches current budget"
+        
+        # Default reason
+        return "Suitable for customer needs"
     
     def _get_parsed_sentiment(self, indicators: ConversationIndicators) -> str:
         """Extract overall sentiment from indicators"""

@@ -152,7 +152,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "BB+PKG_$240TVplus_MOB",
                 "title": "BB+PKG_$240TVplus_MOB",
-                "description": "Enhanced TV Plus Bundle with Premium Channels\nInternet, TV, Mobile",
+                "description": "TV Bundle with Premium Channels\nInternet, TV, Mobile",
                 "value_proposition": "Premium entertainment package",
                 "price_delta": 240,
                 "product_types": ["Internet", "TV", "Mobile"],
@@ -169,7 +169,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "BB_$1851gig_TVMOB_CSpourPkg_1yr",
                 "title": "BB_$1851gig_TVMOB_CSpourPkg_1yr", 
-                "description": "1 Gig Internet plan with TV and Mobile bundle for 1 year\nInternet, TV, Mobile",
+                "description": "1 Gig Internet + TV + Mobile bundle\nInternet, TV, Mobile",
                 "value_proposition": "High-speed triple play",
                 "price_delta": 185,
                 "product_types": ["Internet", "TV", "Mobile"],
@@ -186,7 +186,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "Pricelock_$160TVbasic_MOB_2yr",
                 "title": "Pricelock_$160TVbasic_MOB_2yr",
-                "description": "Basic TV and Mobile bundle with Internet access, price locked for 2 years\nInternet, TV, Mobile",
+                "description": "Basic TV + Mobile with Internet, 2-year price lock\nInternet, TV, Mobile",
                 "value_proposition": "Price stability guarantee",
                 "price_delta": 160,
                 "product_types": ["Internet", "TV", "Mobile"],
@@ -220,7 +220,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "BB+PKG_$260Mobile_Voice_MOB",
                 "title": "BB+PKG_$260Mobile_Voice_MOB",
-                "description": "Premium Voice Services with Enhanced Mobile Features\nInternet, Mobile, Voice",
+                "description": "Premium Voice + Enhanced Mobile Features\nInternet, Mobile, Voice",
                 "value_proposition": "Premium communication suite",
                 "price_delta": 260,
                 "product_types": ["Internet", "Mobile", "Voice"],
@@ -237,7 +237,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "$240Data_MOB_2gigabitpkg_2yr",
                 "title": "$240Data_MOB_2gigabitpkg_2yr",
-                "description": "Ultra-Fast 2 Gigabit Data Package for Power Users\nInternet, Mobile",
+                "description": "Ultra-Fast 2 Gigabit Data Package\nInternet, Mobile",
                 "value_proposition": "Ultra-high speed connectivity",
                 "price_delta": 240,
                 "product_types": ["Internet", "Mobile"],
@@ -254,7 +254,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "Pricelock_$230Bperf_Voice_MOB_pkg_2yr",
                 "title": "Pricelock_$230Bperf_Voice_MOB_pkg_2yr",
-                "description": "High-Performance Bundle with 2-Year Price Guarantee\nInternet, Mobile, Voice",
+                "description": "High-Performance Bundle, 2-Year Price Lock\nInternet, Mobile, Voice",
                 "value_proposition": "Performance with price protection",
                 "price_delta": 230,
                 "product_types": ["Internet", "Mobile", "Voice"],
@@ -271,7 +271,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "$2000Data_MOB_gigabitExtraPkg_2yr",
                 "title": "$2000Data_MOB_gigabitExtraPkg_2yr",
-                "description": "Enterprise-Grade Gigabit Extra with Premium Features\nInternet, Mobile",
+                "description": "Enterprise-Grade Gigabit + Premium Features\nInternet, Mobile",
                 "value_proposition": "Enterprise-level performance",
                 "price_delta": 200,
                 "product_types": ["Internet", "Mobile"],
@@ -288,7 +288,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "BB_$150Mobile_UNLTplus_2yr",
                 "title": "BB_$150Mobile_UNLTplus_2yr",
-                "description": "Unlimited Plus Package with Enhanced Data Allowances\nInternet, Mobile",
+                "description": "Unlimited Plus with Enhanced Data\nInternet, Mobile",
                 "value_proposition": "Unlimited data value",
                 "price_delta": 150,
                 "product_types": ["Internet", "Mobile"],
@@ -305,7 +305,7 @@ class SimpleChurnScorer:
             {
                 "offer_id": "Bundle_$140Internet+Mobile_2yr",
                 "title": "Bundle_$140Internet+Mobile_2yr",
-                "description": "Essential Dual Bundle with 2-Year Contract Savings\nInternet, Mobile",
+                "description": "Essential Internet + Mobile Bundle\nInternet, Mobile",
                 "value_proposition": "Essential value bundle",
                 "price_delta": 140,
                 "product_types": ["Internet", "Mobile"],
@@ -317,6 +317,74 @@ class SimpleChurnScorer:
                 "relevance_score": 92,
                 "priority": 1,
                 "churn_score_min": 20,
+                "churn_score_max": 100
+            },
+            {
+                "offer_id": "PremiumTV_$135Internet+TV_1yr",
+                "title": "PremiumTV_$135Internet+TV_1yr",
+                "description": "Premium Internet + Platinum TV (300+ channels)\nIncludes loyalty discount with 1-year contract",
+                "value_proposition": "Full-featured premium bundle",
+                "price_delta": 135,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "eligibility": "all",
+                "retention_offer": True,
+                "category": "bundle",
+                "urgency": "high",
+                "relevance_score": 88,
+                "priority": 1,
+                "churn_score_min": 40,
+                "churn_score_max": 100
+            },
+            {
+                "offer_id": "Enhanced_$120Internet+TV_1yr",
+                "title": "Enhanced_$120Internet+TV_1yr",
+                "description": "400 Mbps Internet + Sports/Entertainment TV\n1-year contract savings",
+                "value_proposition": "Balanced price and premium channels",
+                "price_delta": 120,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "eligibility": "all",
+                "retention_offer": True,
+                "category": "bundle",
+                "urgency": "high",
+                "relevance_score": 90,
+                "priority": 2,
+                "churn_score_min": 30,
+                "churn_score_max": 100
+            },
+            {
+                "offer_id": "Core_$105Internet+TV_1yr",
+                "title": "Core_$105Internet+TV_1yr",
+                "description": "400 Mbps Internet + Essentials TV (local + ESPN)\n1-year savings plan",
+                "value_proposition": "Affordable core plan with essential channels",
+                "price_delta": 105,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "eligibility": "all",
+                "retention_offer": True,
+                "category": "bundle",
+                "urgency": "high",
+                "relevance_score": 92,
+                "priority": 3,
+                "churn_score_min": 20,
+                "churn_score_max": 100
+            },
+            {
+                "offer_id": "BasicTV_$90Internet+TV_1yr",
+                "title": "BasicTV_$90Internet+TV_1yr",
+                "description": "400 Mbps Internet + Base TV (local + ESPN)\nIncludes modem upgrade and loyalty credit",
+                "value_proposition": "Best value essential package",
+                "price_delta": 90,
+                "product_types": ["Internet", "TV"],
+                "contract_type": "1_year",
+                "eligibility": "all",
+                "retention_offer": True,
+                "category": "bundle",
+                "urgency": "high",
+                "relevance_score": 95,
+                "priority": 4,
+                "churn_score_min": 10,
                 "churn_score_max": 100
             }
         ]
@@ -657,10 +725,15 @@ class SimpleChurnScorer:
         text_embedding = self.embedding_model.encode([customer_text])[0]
         
         total_risk_delta = 0.0
-        similarity_threshold = 0.45 # Minimum similarity to consider a match
-        detected_patterns = []
+        # Use different thresholds based on processing mode
+        if hasattr(self, 'use_hybrid_processing') and self.use_hybrid_processing:
+            similarity_threshold = 0.6  # Higher threshold for hybrid mode
+            print("Pattern Analysis (Hybrid Mode - Threshold: 0.6):")
+        else:
+            similarity_threshold = 0.45  # Default threshold
+            print("Pattern Analysis:")
         
-        print("Pattern Analysis:")
+        detected_patterns = []
         
         # Store all patterns with their similarities
         pattern_similarities = []
@@ -717,33 +790,14 @@ class SimpleChurnScorer:
                 print("⚠️ Falling back to embedding detection")
                 return self.detect_risk_patterns_embedding(text, agent_context)
             
-            # Map LLM detected patterns to base risk scores (same as embedding system)
-            pattern_risk_map = {
-                "billing_complaint": 15.0,
-                "competitor_mention": 30.0, 
-                "service_frustration": 20.0,
-                "process_frustration": 20.0,
-                "positive_resolution": -40.0
-            }
-            
             detected_patterns = analysis.get("risk_patterns", [])
-            total_risk_delta = 0.0
             
             print(f"  LLM Detected patterns: {detected_patterns}")
             print(f"  LLM Sentiment: {analysis.get('sentiment', 'unknown')}")
             print(f"  LLM Emotion: {analysis.get('emotion', 'unknown')}")
             
-            # Calculate risk contribution from detected patterns
-            for pattern in detected_patterns:
-                if pattern in pattern_risk_map:
-                    risk_contribution = pattern_risk_map[pattern]
-                    total_risk_delta += risk_contribution
-                    print(f"  {pattern}: LLM detected -> risk={risk_contribution:.1f}")
-                else:
-                    print(f"  {pattern}: unknown pattern, skipping")
-            
-            if not detected_patterns:
-                print("  No risk patterns detected by LLM")
+            # Calculate risk using the same method with similarity factor
+            total_risk_delta = self._calculate_llm_pattern_risk(detected_patterns)
             
             return total_risk_delta, detected_patterns
             
@@ -764,7 +818,7 @@ class SimpleChurnScorer:
         return sentiment_mapping.get(llm_sentiment.lower(), 0.0)
     
     def _calculate_llm_pattern_risk(self, detected_patterns: List[str]) -> float:
-        """Calculate total pattern risk from LLM detected patterns using same base scores"""
+        """Calculate total pattern risk from LLM detected patterns using same multiplier as rule-based system"""
         pattern_risk_map = {
             "billing_complaint": 15.0,
             "competitor_mention": 30.0, 
@@ -773,15 +827,31 @@ class SimpleChurnScorer:
             "positive_resolution": -40.0
         }
         
+        # Apply same similarity factor logic as rule-based system
+        llm_confidence = 0.7  # Assumed LLM pattern identification confidence
+        similarity_threshold = 0.45  # Same threshold as embedding-based detection
+        
+        # Calculate similarity factor using same formula as rule-based
+        similarity_factor = (llm_confidence - similarity_threshold) / (1.0 - similarity_threshold)
+        similarity_factor = max(0.0, min(1.0, similarity_factor))  # Clamp between 0 and 1
+        
+        print(f"  LLM Pattern Risk Calculation:")
+        print(f"    LLM confidence: {llm_confidence:.3f}")
+        print(f"    Similarity threshold: {similarity_threshold:.3f}")
+        print(f"    Similarity factor: {similarity_factor:.3f}")
+        
         total_risk = 0.0
         for pattern in detected_patterns:
             if pattern in pattern_risk_map:
-                risk_contribution = pattern_risk_map[pattern]
+                base_risk = pattern_risk_map[pattern]
+                # Apply same multiplier as rule-based system
+                risk_contribution = base_risk * similarity_factor
                 total_risk += risk_contribution
-                print(f"  {pattern}: LLM detected -> risk={risk_contribution:.1f}")
+                print(f"    {pattern}: base_risk={base_risk:.1f} * factor={similarity_factor:.3f} -> risk={risk_contribution:.1f}")
             else:
-                print(f"  {pattern}: unknown pattern, skipping")
+                print(f"    {pattern}: unknown pattern, skipping")
         
+        print(f"  Total LLM pattern risk: {total_risk:.1f}")
         return total_risk
     
     def _process_with_rule_based_analysis(self, customer_text: str, agent_context: str, timestamp: datetime) -> ChurnEvent:
@@ -857,7 +927,7 @@ class SimpleChurnScorer:
         return event
 
     def calculate_emotion_risk(self, emotion_result: dict) -> float:
-        """Calculate risk based on dominant emotion only"""
+        """Calculate risk based on dominant emotion with threshold in hybrid mode"""
         dominant_emotion = emotion_result.get('dominant_emotion', 'neutral')
         dominant_score = emotion_result.get('dominant_score', 0.0)
         
@@ -873,11 +943,31 @@ class SimpleChurnScorer:
             'frustration': 10.0 # Moderate risk - frustrated customers
         }
         
+        # Check if we're in hybrid mode and apply threshold
+        if hasattr(self, 'use_hybrid_processing') and self.use_hybrid_processing:
+            emotion_threshold = 0.7  # Higher threshold for hybrid mode
+            print(f"  Emotion Analysis (Hybrid Mode - Threshold: 0.7):")
+            
+            if dominant_score < emotion_threshold:
+                print(f"  {dominant_emotion}: score={dominant_score:.3f} (below threshold {emotion_threshold}) -> risk=0.0")
+                return 0.0
+        
         # Calculate risk only for the dominant emotion
         emotion_risk = 0.0
         if dominant_emotion in emotion_risk_mapping:
-            emotion_risk = emotion_risk_mapping[dominant_emotion]
-            print(f"  {dominant_emotion}: score={dominant_score:.3f} -> risk={emotion_risk:.1f}")
+            base_risk = emotion_risk_mapping[dominant_emotion]
+            
+            # In hybrid mode, apply the same similarity factor logic as patterns
+            if hasattr(self, 'use_hybrid_processing') and self.use_hybrid_processing:
+                # Apply similarity factor like pattern detection
+                emotion_threshold = 0.7
+                similarity_factor = (dominant_score - emotion_threshold) / (1.0 - emotion_threshold)
+                similarity_factor = max(0.0, min(1.0, similarity_factor))
+                emotion_risk = base_risk * similarity_factor
+                print(f"  {dominant_emotion}: score={dominant_score:.3f} * factor={similarity_factor:.3f} -> risk={emotion_risk:.1f}")
+            else:
+                emotion_risk = base_risk
+                print(f"  {dominant_emotion}: score={dominant_score:.3f} -> risk={emotion_risk:.1f}")
         else:
             print(f"  {dominant_emotion}: score={dominant_score:.3f} -> risk=0.0 (unknown emotion)")
         
@@ -1393,6 +1483,7 @@ class SimpleChurnScorer:
                 'type': offer['category'],
                 'price_delta': offer['price_delta'],
                 'retention_offer': offer['retention_offer'],
+                'contract_type': offer.get('contract_type', 'standard'),
                 'accepted': offer.get('accepted', True),
                 'rejection_reason': offer.get('rejection_reason', None)
             })
@@ -1620,6 +1711,7 @@ class SimpleChurnScorer:
                 'type': offer['category'],
                 'price_delta': offer['price_delta'],
                 'retention_offer': offer.get('retention_offer', False),
+                'contract_type': offer.get('contract_type', 'standard'),
                 'accepted': offer.get('accepted', True),
                 'rejection_reason': offer.get('rejection_reason'),
                 'llm_filtered': offer.get('llm_filtered', False)
@@ -1693,8 +1785,11 @@ class SimpleChurnScorer:
                     # This offer is accepted by LLM in this call
                     accepted_offer = offer.copy()
                     accepted_offer['accepted'] = True
-                    accepted_offer['rejection_reason'] = None
                     accepted_offer['llm_filtered'] = True
+                    
+                    # Generate acceptance reason
+                    acceptance_reason = self._generate_acceptance_reason(offer, llm_analysis)
+                    accepted_offer['rejection_reason'] = acceptance_reason  # Using rejection_reason field for both accept/reject remarks
                     
                     # Find corresponding LLM offer for additional details
                     for llm_offer in filtered_offers:
@@ -1706,7 +1801,7 @@ class SimpleChurnScorer:
                             break
                     
                     processed_offers.append(accepted_offer)
-                    print(f"  ✅ {offer_id}: Accepted by LLM")
+                    print(f"  ✅ {offer_id}: Accepted by LLM - {acceptance_reason}")
                 
                 else:
                     # This offer is rejected by LLM in this call - add to persistent rejections
@@ -1778,97 +1873,90 @@ class SimpleChurnScorer:
         risk_patterns = llm_analysis.get('risk_patterns', [])
         offer_indicators = llm_analysis.get('offer_indicators', {})
         
+        # Get current customer MRC for budget rejection
+        current_mrc = getattr(self.llm_extractor, 'customer_profile', {}).get('current_mrc', 200)
+        budget_concern = offer_indicators.get('budget_concern_level', 'none')
+        
         for offer in all_offers:
             formatted_offer = offer.copy()
             formatted_offer['accepted'] = False
             formatted_offer['llm_filtered'] = False
             
-            # Generate specific rejection reason based on analysis
-            rejection_reason = self._generate_enhanced_llm_rejection_reason(
-                offer, sentiment, emotion, risk_patterns, offer_indicators
-            )
-            formatted_offer['rejection_reason'] = rejection_reason
+            # Generate simple rejection reason - primarily budget-based
+            if budget_concern in ['high', 'medium']:
+                rejection_reason = f"Budget concern: removing offers greater than ${current_mrc}"
+            elif offer['price_delta'] > current_mrc:
+                rejection_reason = f"Price ${offer['price_delta']} exceeds budget ${current_mrc}"
+            else:
+                rejection_reason = "Not suitable for current customer needs"
             
+            formatted_offer['rejection_reason'] = rejection_reason
             formatted_offers.append(formatted_offer)
         
         print(f"🔄 Formatted {len(formatted_offers)} offers as rejected due to filtering criteria")
         return formatted_offers
 
     def _generate_enhanced_llm_rejection_reason(self, offer: Dict, sentiment: str, emotion: str, risk_patterns: List[str], offer_indicators: dict) -> str:
-        """Generate specific rejection reason for LLM-filtered offers with detailed reasoning"""
-        reasons = []
-        
-        # Extract service usage and removal indicators
-        service_usage = offer_indicators.get('service_usage', {})
-        service_removal_interest = offer_indicators.get('service_removal_interest', {})
+        """Generate simple rejection reason for LLM-filtered offers"""
         budget_concern = offer_indicators.get('budget_concern_level', 'none')
-        value_preference = offer_indicators.get('value_preference', 'balanced')
         
-        # Check service removal interest FIRST (highest priority)
+        # Get current customer MRC for budget filtering
+        current_mrc = getattr(self.llm_extractor, 'customer_profile', {}).get('current_mrc', 200)
+        
+        # Priority 1: Budget concerns (simplified)
+        if budget_concern in ['high', 'medium'] and offer['price_delta'] > current_mrc:
+            return f"Budget concern: removing offers greater than ${current_mrc}"
+        
+        # Priority 2: Service removal interest
+        service_removal_interest = offer_indicators.get('service_removal_interest', {})
         offer_types = offer.get('product_types', [])
         
         if 'TV' in offer_types and service_removal_interest.get('tv_removal', False):
-            reasons.append("Customer wants to remove TV service (tv_removal: true)")
+            return "Customer wants to remove TV service"
         elif 'Mobile' in offer_types and service_removal_interest.get('mobile_removal', False):
-            reasons.append("Customer wants to remove Mobile service (mobile_removal: true)")
+            return "Customer wants to remove Mobile service" 
         elif 'Internet' in offer_types and service_removal_interest.get('internet_removal', False):
-            reasons.append("Customer wants to remove Internet service (internet_removal: true)")
+            return "Customer wants to remove Internet service"
         
-        # Check service usage patterns (low usage)
-        if 'TV' in offer_types:
-            tv_usage = service_usage.get('tv_usage', 'unknown')
-            if tv_usage == 'low':
-                reasons.append(f"Customer barely watches TV (tv_usage: {tv_usage})")
+        # Priority 3: Simple high price rejection
+        if offer['price_delta'] > current_mrc:
+            return f"Price ${offer['price_delta']} exceeds budget ${current_mrc}"
         
-        if 'Mobile' in offer_types:
-            mobile_usage = service_usage.get('mobile_usage', 'unknown')
-            if mobile_usage == 'low':
-                reasons.append(f"Customer has low mobile usage (mobile_usage: {mobile_usage})")
-                
-        if 'Internet' in offer_types:
-            internet_usage = service_usage.get('internet_usage', 'unknown')
-            if internet_usage == 'low':
-                reasons.append(f"Customer has low internet usage (internet_usage: {internet_usage})")
+        # Default simple reason
+        return "Not suitable for current customer needs"
+
+    def _generate_acceptance_reason(self, offer: Dict, llm_analysis: dict) -> str:
+        """Generate simple acceptance reason for accepted offers"""
+        offer_indicators = llm_analysis.get('offer_indicators', {})
+        risk_patterns = llm_analysis.get('risk_patterns', [])
         
-        # Check budget/price sensitivity
-        if budget_concern == 'high' and offer['price_delta'] > 0:
-            reasons.append(f"High budget concern with price increase (budget_concern_level: {budget_concern}, price_delta: ${offer['price_delta']})")
-        elif budget_concern == 'medium' and offer['price_delta'] > 50:
-            reasons.append(f"Medium budget concern with high price increase (budget_concern_level: {budget_concern}, price_delta: ${offer['price_delta']})")
+        # Get current customer MRC for comparison
+        current_mrc = getattr(self.llm_extractor, 'customer_profile', {}).get('current_mrc', 200)
         
-        # Check billing complaints with price increases
-        if sentiment in ['negative', 'very_negative'] and 'billing_complaint' in risk_patterns:
-            if offer['price_delta'] > 0:
-                reasons.append(f"Price increase conflicts with billing complaints (sentiment: {sentiment}, billing_complaint detected)")
+        # Check if it's a retention offer
+        if offer.get('retention_offer', False):
+            if offer['price_delta'] < current_mrc:
+                return f"Retention offer: lower cost (${offer['price_delta']} vs ${current_mrc})"
             else:
-                reasons.append(f"Not aligned with budget concerns despite discount (sentiment: {sentiment}, billing_complaint detected)")
+                return "Retention offer: loyalty benefits"
         
-        # Check emotional state with premium offers
-        if emotion in ['anger', 'frustration'] and offer['category'] in ['upgrade', 'premium']:
-            reasons.append(f"Customer {emotion} - premium offers not suitable (emotion: {emotion}, category: {offer['category']})")
-        
-        # Check competitor mentions with high-priced offers
-        if 'competitor_mention' in risk_patterns and offer['price_delta'] > 50:
-            reasons.append(f"High-priced offer when competitor mentioned (competitor_mention detected, price_delta: ${offer['price_delta']})")
-        
-        # Check service frustration with add-ons
-        if 'service_frustration' in risk_patterns and 'add-on' in offer['category']:
-            reasons.append(f"Customer frustrated with service - additional features not recommended (service_frustration detected)")
-        
-        # Check value preference
-        if value_preference == 'price_focused' and offer['price_delta'] > 0:
-            reasons.append(f"Customer is price-focused but offer increases cost (value_preference: {value_preference}, price_delta: ${offer['price_delta']})")
-        
-        # Default reason if no specific reason found
-        if not reasons:
-            if sentiment in ['negative', 'very_negative']:
-                reasons.append(f"Not suitable for current customer sentiment (sentiment: {sentiment})")
-            elif emotion in ['anger', 'frustration', 'sadness']:
-                reasons.append(f"Not appropriate given customer emotion (emotion: {emotion})")
+        # Check if price is within budget
+        if offer['price_delta'] <= current_mrc:
+            if offer['price_delta'] < current_mrc:
+                return f"Good value: saves ${current_mrc - offer['price_delta']}/month"
             else:
-                reasons.append("Lower priority based on conversation analysis")
+                return "Matches current budget"
         
-        return "; ".join(reasons)
+        # Check for competitive situations
+        if 'competitor_mention' in risk_patterns:
+            return "Competitive retention offer"
+        
+        # Check for billing complaints
+        if 'billing_complaint' in risk_patterns:
+            return "Addresses billing concerns"
+        
+        # Default acceptance reason
+        return "Suitable for customer needs"
 
 def simulate_conversation_example():
     """Simulate the provided conversation example"""
