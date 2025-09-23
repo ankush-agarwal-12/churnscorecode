@@ -86,7 +86,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "standard",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 5
+                "priority": 3
             },
             {
                 "offer_id": "BB_$1851gig_TVMOB_CSpourPkg_1yr",
@@ -98,7 +98,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "1_year",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 3
+                "priority": 4
             },
             {
                 "offer_id": "Pricelock_$160TVbasic_MOB_2yr",
@@ -110,7 +110,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "2_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 2
+                "priority": 8
             },
             {
                 "offer_id": "BB+PKG_$260TVSmartHome_MOB",
@@ -122,7 +122,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "standard",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 6
+                "priority": 1
             },
             {
                 "offer_id": "BB+PKG_$260Mobile_Voice_MOB",
@@ -134,7 +134,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "standard",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 7
+                "priority": 2
             },
             {
                 "offer_id": "$240Data_MOB_2gigabitpkg_2yr",
@@ -146,7 +146,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "2_year",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 4
+                "priority": 5
             },
             {
                 "offer_id": "Pricelock_$230Bperf_Voice_MOB_pkg_2yr",
@@ -158,7 +158,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "2_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 3
+                "priority": 6
             },
             {
                 "offer_id": "$2000Data_MOB_gigabitExtraPkg_2yr",
@@ -170,7 +170,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "2_year",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 8
+                "priority": 4
             },
             {
                 "offer_id": "BB_$150Mobile_UNLTplus_2yr",
@@ -182,7 +182,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "2_year",
                 "retention_offer": False,
                 "category": "bundle",
-                "priority": 2
+                "priority": 7
             },
             {
                 "offer_id": "Bundle_$140Internet+Mobile_2yr",
@@ -194,7 +194,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "2_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 1
+                "priority": 10
             },
             {
                 "offer_id": "PremiumTV_$135Internet+TV_1yr",
@@ -206,7 +206,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "1_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 1
+                "priority": 3
             },
             {
                 "offer_id": "Enhanced_$120Internet+TV_1yr",
@@ -218,7 +218,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "1_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 2
+                "priority": 7
             },
             {
                 "offer_id": "Core_$105Internet+TV_1yr",
@@ -230,7 +230,7 @@ class LLMIndicatorExtractor:
                 "contract_type": "1_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 3
+                "priority": 9
             },
             {
                 "offer_id": "BasicTV_$90Internet+TV_1yr",
@@ -242,8 +242,80 @@ class LLMIndicatorExtractor:
                 "contract_type": "1_year",
                 "retention_offer": True,
                 "category": "bundle",
-                "priority": 4
-            }
+                "priority": 11
+            },
+            {
+    "offer_id": "Flex_$175Internet+TV_STD",
+    "title": "Flex_$175Internet+TV_STD",
+    "description": "1 Gbps Internet + Essentials TV (local + ESPN)\nMonth-to-month, cancel anytime",
+    "value_proposition": "High speed with full flexibility",
+    "price_delta": 175,
+    "product_types": ["Internet", "TV"],
+    "contract_type": "standard",
+    "retention_offer": False,
+    "category": "bundle",
+    "priority": 5
+},
+{
+    "offer_id": "Flex_$160InternetOnly_STD",
+    "title": "Flex_$160InternetOnly_STD",
+    "description": "1 Gbps Internet only plan\nMonth-to-month, no TV or Mobile required",
+    "value_proposition": "Fast internet without extras",
+    "price_delta": 160,
+    "product_types": ["Internet"],
+    "contract_type": "standard",
+    "retention_offer": False,
+    "category": "standalone",
+    "priority": 6
+},
+{
+    "offer_id": "Flex_$150MobileOnly_STD",
+    "title": "Flex_$150MobileOnly_STD",
+    "description": "Unlimited mobile with premium data speeds\nMonth-to-month, cancel anytime",
+    "value_proposition": "Flexible mobile-first plan",
+    "price_delta": 150,
+    "product_types": ["Mobile"],
+    "contract_type": "standard",
+    "retention_offer": False,
+    "category": "standalone",
+    "priority": 7
+},
+{
+    "offer_id": "Flex_$140Internet+Mobile_STD",
+    "title": "Flex_$140Internet+Mobile_STD",
+    "description": "Essential Internet + Unlimited Mobile bundle\nMonth-to-month, cancel anytime",
+    "value_proposition": "Best value flexible bundle",
+    "price_delta": 140,
+    "product_types": ["Internet", "Mobile"],
+    "contract_type": "standard",
+    "retention_offer": False,
+    "category": "bundle",
+    "priority": 8
+},
+{
+    "offer_id": "Flex_$120InternetBasicTV_STD",
+    "title": "Flex_$120InternetBasicTV_STD",
+    "description": "400 Mbps Internet + Base TV (local channels)\nMonth-to-month, cancel anytime",
+    "value_proposition": "Affordable flexible starter plan",
+    "price_delta": 120,
+    "product_types": ["Internet", "TV"],
+    "contract_type": "standard",
+    "retention_offer": False,
+    "category": "bundle",
+    "priority": 9
+},
+{
+    "offer_id": "Flex_$100InternetOnly_STD",
+    "title": "Flex_$100InternetOnly_STD",
+    "description": "400 Mbps Internet only plan\nMonth-to-month, cancel anytime",
+    "value_proposition": "Cheapest flexible internet plan",
+    "price_delta": 100,
+    "product_types": ["Internet"],
+    "contract_type": "standard",
+    "retention_offer": False,
+    "category": "standalone",
+    "priority": 10
+}
         ]
 
     def extract_indicators(self, customer_message: str, agent_message: str = "") -> Optional[ConversationIndicators]:
@@ -768,12 +840,40 @@ IMPORTANT: RETURN ONLY VALID JSON."""
             sorting_reason = "Competitor mentioned in risk patterns: Sorted by smallest price for retention"
         else:
             sorting_reason = "No retention sorting applied"
-        
+
         # Combine main offers and low usage offers
         final_offers = main_offers + low_usage_offers
         
+       # Step 5: NEW - Filter by Contract Type Preferences
+        contract_flexibility_needed = indicators.offer_indicators.value_preferences.get("contract_flexibility_needed", False)
+        if contract_flexibility_needed:
+            long_contract_offers = [offer for offer in final_offers if offer["contract_type"] in ["2_year", "1_year"]]
+            final_offers = [offer for offer in final_offers if offer["contract_type"] not in ["2_year", "1_year"]]
+            filtering_reason = "Contract flexibility needed: Removed long-term contracts"
+            print(f"   Removed {len(long_contract_offers)} long-contract offers")
+            for offer in long_contract_offers:
+                print(f"     - {offer['offer_id']}: {offer['contract_type']}")
+        else:
+            filtering_reason = "No contract filtering applied"
+        
+        # Step 6: NEW - Filter by Value Preferences
+        value_preference = indicators.offer_indicators.value_preferences.get("value_preference", "balanced")
+        if value_preference == "feature_focused":
+            # Prioritize feature-rich offers
+            final_offers.sort(key=lambda x: x.get("priority", 10))  # Lower priority number = higher feature richness
+            sorting_reason = "Feature-focused: Prioritized premium/feature-rich offers"
+        elif value_preference == "price_focused":
+            # Prioritize low-cost offers
+            final_offers.sort(key=lambda x: x["price_delta"])
+            sorting_reason = "Price-focused: Sorted by lowest price first"
+        else:
+            sorting_reason = "Balanced preference: No additional sorting"
+        
+       
+       
+        
         # Add filtering explanation and acceptance remarks to each offer
-        for offer in final_offers:
+        for i, offer in enumerate(final_offers):
             offer["filtering_explanation"] = []
             offer["filtering_explanation"].append(filtering_reason)
             offer["filtering_explanation"].append(sorting_reason)
@@ -781,8 +881,10 @@ IMPORTANT: RETURN ONLY VALID JSON."""
             if hasattr(offer, 'low_usage_reason'):
                 offer["filtering_explanation"].append(f"Low usage: {offer['low_usage_reason']}")
             
-            # Add simple acceptance reason for filtered offers
-            offer["acceptance_reason"] = self._generate_simple_acceptance_reason(offer, competitor_mentioned)
+            # Add simple acceptance reason for filtered offers with sorting context
+            offer["acceptance_reason"] = self._generate_improved_acceptance_reason(
+                offer, competitor_mentioned, value_preference, i < 3
+            )
         
         # Update global filtered offers
         self.global_filtered_offers = final_offers
@@ -794,31 +896,41 @@ IMPORTANT: RETURN ONLY VALID JSON."""
         
         return final_offers
 
-    def _generate_simple_acceptance_reason(self, offer: Dict, competitor_mentioned: bool) -> str:
-        """Generate simple acceptance reason for offers that pass filtering"""
+    def _generate_improved_acceptance_reason(self, offer: Dict, competitor_mentioned: bool, 
+                                           value_preference: str, is_top_3: bool) -> str:
+        """Generate improved acceptance reason with sorting context"""
         customer_mrc = self.customer_profile["current_mrc"]
+        reasons = []
         
-        # Check if it's a retention offer with savings
-        if offer.get('retention_offer', False):
-            if offer['price_delta'] < customer_mrc:
-                savings = customer_mrc - offer['price_delta']
-                return f"Retention offer: saves ${savings}/month"
-            else:
-                return "Retention offer: loyalty benefits"
-        
-        # Check for competitive pricing
-        if competitor_mentioned:
-            return "Competitive pricing for retention"
-        
-        # Check for savings
+        # Primary reason based on price comparison
         if offer['price_delta'] < customer_mrc:
             savings = customer_mrc - offer['price_delta']
-            return f"Good value: saves ${savings}/month"
+            reasons.append(f"Saves ${savings}/month")
         elif offer['price_delta'] == customer_mrc:
-            return "Matches current budget"
+            reasons.append("Matches current budget")
+        else:
+            upgrade_cost = offer['price_delta'] - customer_mrc
+            reasons.append(f"Upgrade for ${upgrade_cost}/month")
         
-        # Default reason
-        return "Suitable for customer needs"
+        # Add sorting context for top 3 offers
+        if is_top_3:
+            if value_preference == "price_focused":
+                reasons.append("prioritized for cost savings")
+            elif value_preference == "feature_focused":
+                reasons.append("prioritized for premium features")
+            elif competitor_mentioned:
+                reasons.append("competitive pricing")
+        
+        # Add service-specific benefits
+        product_types = offer.get("product_types", [])
+        if "SmartHome" in product_types:
+            reasons.append("includes smart home features")
+        elif "Voice" in product_types:
+            reasons.append("includes premium voice features")
+        elif len(product_types) >= 3:
+            reasons.append("comprehensive bundle")
+        
+        return " - ".join(reasons)
     
     def _get_parsed_sentiment(self, indicators: ConversationIndicators) -> str:
         """Extract overall sentiment from indicators"""
